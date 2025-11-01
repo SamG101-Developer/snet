@@ -13,6 +13,7 @@ import snet.crypt.random;
 import snet.net.socket;
 import snet.utils.assert;
 import snet.manager.cmd_handler;
+import snet.manager.profile_manager;
 
 import snet.boot;
 import snet.cli;
@@ -136,7 +137,7 @@ auto main(const int argc, char **argv) -> int {
     openssl::SSL_load_error_strings();
     openssl::SSL_library_init();
     openssl::OpenSSL_add_all_algorithms();
-    openssl::CRYPTO_secure_malloc_init(std::pow(2, 16), std::pow(2, 6));
+    openssl::CRYPTO_secure_malloc_init(std::pow(2, 24), std::pow(2, 6));
 
     // test_kem_functions();
     // test_symmetric_encryption();
@@ -144,10 +145,9 @@ auto main(const int argc, char **argv) -> int {
     // test_sockets();
     // test_signature_functions();
 
-    // const auto ret = snet::cli::create_cli(argc, argv);
-    snet::managers::cmd::handle_join("node.0", "pass.0");
+    const auto ret = snet::cli::create_cli(argc, argv);
 
     openssl::CRYPTO_secure_malloc_done();
 
-    return 0;
+    return ret;
 }

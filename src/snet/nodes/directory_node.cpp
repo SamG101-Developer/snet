@@ -34,7 +34,7 @@ snet::nodes::DirectoryNode::DirectoryNode(
     m_name(std::move(name)) {
 
     // Create the communication stack and bootstrapping layer.
+    m_comm_stack.start(&m_node_info);
     m_comm_stack.setup_boostrap(std::make_unique<comm_stack::layers::LayerD>(
         &m_node_info, m_comm_stack.get_socket(), true, ssk, m_comm_stack.get_layer_4()));
-    m_comm_stack.start(&m_node_info);
 }

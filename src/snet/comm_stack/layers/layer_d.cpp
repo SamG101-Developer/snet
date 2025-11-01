@@ -82,9 +82,9 @@ snet::comm_stack::layers::LayerD::LayerD(
     m_l4(l4) {
 
     // Set the cache path and load the cache.
-    const auto self_id_as_str = std::string(m_self_id.begin(), m_self_id.end()) + ".json";
+    const auto self_id_as_str = utils::to_hex(m_self_node_info->hashed_username);
     m_logger = spdlog::logger("LayerD");
-    m_node_cache_file_path = (is_directory_service ? constants::DIRECTORY_SERVICE_NODE_CACHE_DIR : constants::PROFILE_CACHE_DIR) / self_id_as_str;
+    m_node_cache_file_path = (is_directory_service ? constants::DIRECTORY_SERVICE_NODE_CACHE_DIR : constants::PROFILE_CACHE_DIR) / (self_id_as_str + ".json");
     load_cache_from_file();
 }
 
