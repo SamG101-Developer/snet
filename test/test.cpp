@@ -228,8 +228,8 @@ auto create_nodes() -> void {
 
 
 auto main(int argc, char *argv[]) -> int {
-    create_directory_services();
-    create_nodes();
+    // create_directory_services();
+    // create_nodes();
 
     QApplication app(argc, argv);
     const auto gui = new TestGui();

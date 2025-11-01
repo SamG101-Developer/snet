@@ -70,11 +70,13 @@ auto snet::managers::ds::create_directory_profile(
     auto ssk_serialized = crypt::asymmetric::serialize_private(ssk);
     auto identifier = crypt::hash::sha3_256(spk_serialized);
     const auto public_directory_service_entry = nlohmann::json{
-        {"name", username},
-        {"identifier", utils::to_hex(identifier)},
-        {"public_key", utils::to_hex(spk_serialized)},
-        {"address", addr},
-        {"port", port}
+        {
+            {"name", username},
+            {"identifier", utils::to_hex(identifier)},
+            {"public_key", utils::to_hex(spk_serialized)},
+            {"address", addr},
+            {"port", port}
+        }
     };
 
     // Generate the private information for the directory service.

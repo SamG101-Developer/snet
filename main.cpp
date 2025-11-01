@@ -1,5 +1,4 @@
 import openssl;
-import serex.serialize;
 import spdlog;
 import std;
 
@@ -13,12 +12,14 @@ import snet.crypt.random;
 import snet.net.socket;
 import snet.utils.assert;
 
+import snet.boot;
+import snet.cli;
+
 
 auto test_signature_functions() -> void {
     // Define a fixed session token for the test.
     constexpr auto session_token_len = 32;
     const auto session_token = snet::crypt::random::random_bytes(session_token_len);
-
 
     // Node A's static secret and public key pair.
     const auto sSKa = snet::crypt::asymmetric::generate_sig_keypair();
@@ -126,35 +127,23 @@ auto test_sockets() -> void {
 }
 
 
-int main() {
-    // Register serialization polymorphic types.
-    serex::register_polymorphic_type<snet::comm_stack::RawRequest>("snet.comm_stack.RawRequest");
-    serex::register_polymorphic_type<snet::comm_stack::EncryptedRequest>("snet.comm_stack.EncryptedRequest");
-    serex::register_polymorphic_type<snet::comm_stack::LayerD_BootstrapRequest>("snet.comm_stack.LayerD_BootstrapRequest");
-    serex::register_polymorphic_type<snet::comm_stack::LayerD_BootstrapResponse>("snet.comm_stack.LayerD_BootstrapResponse");
-    serex::register_polymorphic_type<snet::comm_stack::Layer4_ConnectionRequest>("snet.comm_stack.layers.Layer4_ConnectionRequest");
-    serex::register_polymorphic_type<snet::comm_stack::Layer4_ConnectionAccept>("snet.comm_stack.layers.Layer4_ConnectionAccept");
-    serex::register_polymorphic_type<snet::comm_stack::Layer4_ConnectionAck>("snet.comm_stack.layers.Layer4_ConnectionAck");
-    serex::register_polymorphic_type<snet::comm_stack::Layer4_ConnectionClose>("snet.comm_stack.layers.Layer4_ConnectionClose");
-    serex::register_polymorphic_type<snet::comm_stack::Layer2_RouteExtensionRequest>("snet.comm_stack.Layer2_RouteExtensionRequest");
-    serex::register_polymorphic_type<snet::comm_stack::Layer2_TunnelJoinRequest>("snet.comm_stack.Layer2_TunnelJoinRequest");
-    serex::register_polymorphic_type<snet::comm_stack::Layer2_TunnelJoinAccept>("snet.comm_stack.Layer2_TunnelJoinAccept");
-    serex::register_polymorphic_type<snet::comm_stack::Layer2_TunnelJoinReject>("snet.comm_stack.Layer2_TunnelJoinReject");
-    serex::register_polymorphic_type<snet::comm_stack::Layer2_TunnelDataForward>("snet.comm_stack.Layer2_TunnelDataForward");
-    serex::register_polymorphic_type<snet::comm_stack::Layer2_TunnelDataBackward>("snet.comm_stack.Layer2_TunnelDataBackward");
+auto main(const int argc, char **argv) -> int {
+    snet::boot::boot_serex();
 
     openssl::SSL_load_error_strings();
     openssl::SSL_library_init();
     openssl::OpenSSL_add_all_algorithms();
     openssl::CRYPTO_secure_malloc_init(std::pow(2, 16), std::pow(2, 6));
 
-    test_kem_functions();
-    test_symmetric_encryption();
-    test_certificate();
-    test_sockets();
-    test_signature_functions();
+    // test_kem_functions();
+    // test_symmetric_encryption();
+    // test_certificate();
+    // test_sockets();
+    // test_signature_functions();
+
+    const auto ret = snet::cli::create_cli(argc, argv);
 
     openssl::CRYPTO_secure_malloc_done();
 
-    return 0;
+    return ret;
 }

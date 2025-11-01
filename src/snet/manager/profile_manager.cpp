@@ -89,10 +89,12 @@ auto snet::managers::profile::create_profile(
 
     // Generate the profile information for the user.
     const auto profile_entry = nlohmann::json{
-        {"username", username},
-        {"hashed_username", utils::to_hex(hashed_username)},
-        {"hashed_password", utils::to_hex(hashed_password)},
-        {"port", port}
+        {
+            {"username", username},
+            {"hashed_username", utils::to_hex(hashed_username)},
+            {"hashed_password", utils::to_hex(hashed_password)},
+            {"port", port}
+        }
     };
     current_profiles[username] = profile_entry;
     utils::write_file(constants::PROFILE_FILE, current_profiles.dump(4));

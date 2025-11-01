@@ -89,6 +89,21 @@ snet::comm_stack::layers::LayerD::LayerD(
 }
 
 
+auto snet::comm_stack::layers::LayerD::load_cache_from_file()
+    -> void {
+    // Load the cache from the file.
+    const auto current_cache = nlohmann::json::parse(utils::read_file(m_node_cache_file_path));
+
+    // Convert the cache into a vector of tuples for ConnectionCache::cached_nodes.
+    for (auto const &cache_entry : current_cache) {
+        auto ip_address = cache_entry["address"].get<std::string>();
+        auto port = cache_entry["port"].get<std::uint16_t>();
+        auto identifier = utils::from_hex(cache_entry["identifier"].get<std::string>());
+        ConnectionCache::cached_nodes.emplace_back(ip_address, port, identifier);
+    }
+}
+
+
 auto snet::comm_stack::layers::LayerD::request_bootstrap()
     -> void {
     // Define the exclusion list to prevent duplicates.
@@ -179,6 +194,16 @@ auto snet::comm_stack::layers::LayerD::handle_bootstrap_response(
     m_logger.info(std::format("LayerD successfully bootstrapped and added {} nodes to cache", nodes.size()));
 
     // Update the file based cache.
-    auto file_data = utils::read_file(m_node_cache_file_path);
-
+    auto file_data = nlohmann::json::parse(utils::read_file(m_node_cache_file_path));
+    for (auto &entry : ConnectionCache::cached_nodes) {
+        const auto json_entry = nlohmann::json{
+            {
+                {"address", std::get<0>(entry)},
+                {"port", std::get<1>(entry)},
+                {"identifier", utils::to_hex(std::get<2>(entry))}
+            }
+        };
+        file_data.emplace_back(json_entry);
+    }
+    utils::write_file(m_node_cache_file_path, file_data.dump(4));
 }

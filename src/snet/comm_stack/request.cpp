@@ -129,6 +129,8 @@ export namespace snet::comm_stack {
         crypt::bytes::RawBytes kem_wrapped_p2p_primary_key;
         crypt::bytes::RawBytes sig;
 
+        Layer4_ConnectionAccept() = default;
+
         explicit Layer4_ConnectionAccept(
             crypt::bytes::RawBytes acceptor_cert,
             crypt::bytes::RawBytes kem_wrapped_p2p_primary_key,
