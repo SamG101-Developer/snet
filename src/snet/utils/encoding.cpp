@@ -4,6 +4,13 @@ import std;
 
 
 export namespace snet::utils {
+    inline auto hex_value(const char c) -> std::uint8_t {
+        if (c >= '0' && c <= '9') return c - '0';
+        if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+        if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+        throw std::invalid_argument("Invalid hex digit");
+    }
+
     inline auto to_hex(
         const std::span<std::uint8_t> data) ->
         std::string {
@@ -26,10 +33,10 @@ export namespace snet::utils {
             throw std::invalid_argument("Invalid hex string length");
         }
         auto data = std::conditional_t<Secure, crypt::bytes::SecureBytes, crypt::bytes::RawBytes>(hex_str.size() / 2);
-        for (std::size_t i = 0; i < data.size(); ++i) {
-            const auto high_nibble = static_cast<std::uint8_t>(std::stoi(hex_str.substr(i * 2, 1), nullptr, 16));
-            const auto low_nibble = static_cast<std::uint8_t>(std::stoi(hex_str.substr(i * 2 + 1, 1), nullptr, 16));
-            data[i] = (high_nibble << 4) | low_nibble;
+        for (auto i = 0uz; i < data.size(); ++i) {
+            const auto hi = hex_value(hex_str[2 * i]);
+            const auto lo = hex_value(hex_str[2 * i + 1]);
+            data[i] = (hi << 4) | lo;
         }
         return data;
     }

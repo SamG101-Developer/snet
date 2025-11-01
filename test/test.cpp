@@ -56,8 +56,8 @@ class LogMessageScroller final : public QScrollArea {
     Q_OBJECT
     std::size_t node_id;
     LogMessageDisplay *log_display;
-    QThread program_thread;
     QMutex io_lock;
+    QProcess *process = nullptr;
 
 public:
     explicit LogMessageScroller(
@@ -77,10 +77,7 @@ public:
         });
 
         // Thread the node process to avoid blocking the UI.
-        connect(&program_thread, &QThread::started, this, [this, is_directory_service] {
-            is_directory_service ? run_dir_process() : run_node_process();
-        });
-        program_thread.start();
+        is_directory_service ? run_dir_process() : run_node_process();
     }
 
     auto scroll_to_bottom() const -> void {
@@ -110,13 +107,13 @@ public:
         dialog->show();
     }
 
-    auto run_node_process() const -> void {
+    auto run_node_process() -> void {
         const auto username = std::string("node.") + std::to_string(node_id);
         const auto password = std::string("pass.") + std::to_string(node_id);
         const auto cmd = std::string("../snet join --name ") + username + std::string(" --pass ") + password;
 
         // Create the process and link the logging to pipes.
-        const auto process = new QProcess();
+        process = new QProcess();
         QStringList env;
         env << "HOME=" + QString::fromLocal8Bit(std::getenv("HOME"));
         env << "DISPLAY=" + QString::fromLocal8Bit(std::getenv("DISPLAY"));
@@ -129,19 +126,18 @@ public:
         connect(process, &QProcess::readyReadStandardOutput, this, &LogMessageScroller::read_output);
         connect(process, &QProcess::readyReadStandardError, this, &LogMessageScroller::read_output);
         process->start();
-        process->waitForFinished();
-        delete process;
     }
 
-    auto run_dir_process() const -> void {
+    auto run_dir_process() -> void {
         const auto name = std::string("snetwork.directory-service.") + std::to_string(node_id);
         const auto ds_info = snet::utils::read_file(snet::constants::DIRECTORY_SERVICE_PRIVATE_DIR / (name + ".json"));
         const auto ds_json = nlohmann::json::parse(ds_info);
-        const auto key = snet::utils::from_hex<true>(ds_json.at("secret_key").get<std::string>());
+        const auto key_serialized = ds_json.at("secret_key").get<std::string>();
+        const auto key = snet::utils::from_hex<true>(key_serialized);
         const auto cmd = std::string("../snet directory --name ") + name;
 
         // Create the process and link the logging to pipes.
-        const auto process = new QProcess();
+        process = new QProcess();
         QStringList env;
         env << "HOME=" + QString::fromLocal8Bit(std::getenv("HOME"));
         env << "DISPLAY=" + QString::fromLocal8Bit(std::getenv("DISPLAY"));
@@ -154,8 +150,6 @@ public:
         connect(process, &QProcess::readyReadStandardOutput, this, &LogMessageScroller::read_output);
         connect(process, &QProcess::readyReadStandardError, this, &LogMessageScroller::read_output);
         process->start();
-        process->waitForFinished();
-        delete process;
     }
 
 private slots:
@@ -237,6 +231,8 @@ auto create_nodes() -> void {
 auto main(int argc, char *argv[]) -> int {
     // create_directory_services();
     // create_nodes();
+
+    qputenv("QT_QPA_PLATFORM", QByteArray("xcb"));
 
     QApplication app(argc, argv);
     const auto gui = new TestGui();
