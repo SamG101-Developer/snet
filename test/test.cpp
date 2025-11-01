@@ -1,0 +1,240 @@
+#include <QApplication>
+#include <QDialog>
+#include <QFont>
+#include <QGridLayout>
+#include <QLabel>
+#include <QMouseEvent>
+#include <QMutex>
+#include <QProcess>
+#include <QPushButton>
+#include <QScrollArea>
+#include <QScrollBar>
+#include <Qt>
+#include <QThread>
+#include <QVBoxLayout>
+#include <QWidget>
+
+import std;
+import json;
+import snet.constants;
+import snet.manager.ds_manager;
+import snet.manager.key_manager;
+import snet.manager.profile_manager;
+import snet.utils.files;
+import snet.utils.encoding;
+
+constexpr auto NODE_COUNT = 14;
+constexpr auto DIR_NODE_COUNT = 4;
+constexpr auto W = 6;
+constexpr auto H = 3;
+
+
+class LogMessageDisplay final : public QWidget {
+    Q_OBJECT
+    std::vector<std::string> m_messages;
+
+public:
+    explicit LogMessageDisplay(QWidget *parent = nullptr) {
+        setLayout(new QVBoxLayout());
+        setFont(QFont("JetBrains Mono", 5));
+        layout()->setAlignment(Qt::AlignTop);
+    }
+
+    auto add_new_log_message(std::string const &message) -> void {
+        m_messages.emplace_back(std::move(message));
+        const auto label = new QLabel(QString::fromStdString(m_messages.back()), this);
+        label->setWordWrap(true);
+        layout()->addWidget(label);
+    }
+
+    auto nth_message(const std::size_t n) -> std::string const& {
+        return m_messages.at(n);
+    }
+};
+
+
+class LogMessageScroller final : public QScrollArea {
+    Q_OBJECT
+    std::size_t node_id;
+    LogMessageDisplay *log_display;
+    QThread program_thread;
+    QMutex io_lock;
+
+public:
+    explicit LogMessageScroller(
+        const std::size_t node_id,
+        const bool is_directory_service,
+        QWidget *parent = nullptr) :
+        QScrollArea(parent),
+        node_id(node_id),
+        log_display(new LogMessageDisplay()) {
+        setWidgetResizable(true);
+        setWidget(log_display);
+
+        // Connect the signal for receiving new log messages.
+        connect(this, &LogMessageScroller::recv_new_log_message, this, [this](std::string const &message) {
+            log_display->add_new_log_message(message);
+            scroll_to_bottom();
+        });
+
+        // Thread the node process to avoid blocking the UI.
+        connect(&program_thread, &QThread::started, this, [this, is_directory_service] {
+            is_directory_service ? run_dir_process() : run_node_process();
+        });
+        program_thread.start();
+    }
+
+    auto scroll_to_bottom() const -> void {
+        verticalScrollBar()->setValue(verticalScrollBar()->maximum());
+    }
+
+    auto mousePressEvent(QMouseEvent *event) -> void override {
+        const auto dialog = new QDialog();
+        dialog->setLayout(new QVBoxLayout());
+        dialog->layout()->setAlignment(Qt::AlignTop);
+        dialog->setWindowTitle(QString::fromStdString("Node " + std::to_string(node_id) + " Log Messages"));
+        dialog->setFixedSize(800, 600);
+        dialog->setWindowOpacity(0.9);
+
+        const auto scroller = new QScrollArea();
+        scroller->setWidgetResizable(true);
+        scroller->setWidget(new LogMessageDisplay());
+        scroller->widget()->setFont(QFont("JetBrains Mono", 10));
+
+        for (auto i = 0uz; i < log_display->layout()->count(); ++i) {
+            auto log_message = log_display->nth_message(i);
+            qobject_cast<LogMessageDisplay*>(scroller->widget())->add_new_log_message(std::move(log_message));
+        }
+        scroller->verticalScrollBar()->setValue(scroller->verticalScrollBar()->maximum());
+
+        dialog->layout()->addWidget(scroller);
+        dialog->show();
+    }
+
+    auto run_node_process() const -> void {
+        const auto username = std::string("node.") + std::to_string(node_id);
+        const auto password = std::string("pass.") + std::to_string(node_id);
+        const auto cmd = std::string("sudo ./snet join --name ") + username + std::string(" --pass ") + password;
+
+        // Create the process and link the logging to pipes.
+        const auto process = new QProcess();
+        process->setProgram("/bin/sh");
+        process->setArguments({"-c", cmd.c_str()});
+        process->setProcessChannelMode(QProcess::MergedChannels);
+
+        // Read the output from the process and emit log messages (threaded).
+        connect(process, &QProcess::readyReadStandardOutput, this, &LogMessageScroller::read_output);
+        connect(process, &QProcess::readyReadStandardError, this, &LogMessageScroller::read_output);
+        process->start();
+        process->waitForFinished();
+        delete process;
+    }
+
+    auto run_dir_process() const -> void {
+        const auto name = std::string("snetwork.directory-service.") + std::to_string(node_id);
+        const auto ds_info = snet::utils::read_file(snet::constants::DIRECTORY_SERVICE_PRIVATE_DIR / (name + ".json"));
+        const auto ds_json = nlohmann::json::parse(ds_info);
+        const auto key = snet::utils::from_hex<true>(ds_json.at("secret_key").get<std::string>());
+        const auto cmd = std::string("sudo ./snet directory-service --name ") + name;
+
+        // Create the process and link the logging to pipes.
+        const auto process = new QProcess();
+        process->setProgram("/bin/sh");
+        process->setArguments({"-c", cmd.c_str()});
+        process->setProcessChannelMode(QProcess::MergedChannels);
+
+        // Read the output from the process and emit log messages (threaded).
+        connect(process, &QProcess::readyReadStandardOutput, this, &LogMessageScroller::read_output);
+        connect(process, &QProcess::readyReadStandardError, this, &LogMessageScroller::read_output);
+        process->start();
+        process->waitForFinished();
+        delete process;
+    }
+
+private slots:
+    auto read_output() -> void {
+        io_lock.lock();
+        const auto process = qobject_cast<QProcess*>(sender());
+        while (process->canReadLine()) {
+            auto line = process->readLine().toStdString();
+            emit recv_new_log_message(std::move(line));
+        }
+        io_lock.unlock();
+    }
+
+signals:
+    auto recv_new_log_message(std::string const &message) -> void;
+};
+
+
+class TestGui final : public QWidget {
+    Q_OBJECT
+
+public:
+    explicit TestGui(QWidget *parent = nullptr) :
+        QWidget(parent) {
+        setWindowTitle(QString::fromStdString("Test GUI"));
+        setLayout(new QGridLayout());
+
+        // Cell for each node.
+        auto counter = 0;
+        for (auto i = 0; i < H; ++i) {
+            for (auto j = 0; j < W; ++j) {
+                const auto n = i * W + j;
+                LogMessageScroller *log_display;
+                if (n < DIR_NODE_COUNT) {
+                    log_display = new LogMessageScroller(n, true, this);
+                }
+                else {
+                    log_display = new LogMessageScroller(n - DIR_NODE_COUNT, false, this);
+                }
+                qobject_cast<QGridLayout*>(layout())->addWidget(log_display, i, j);
+                ++counter;
+            }
+        }
+        showMaximized();
+    }
+};
+
+
+auto create_directory_services() -> void {
+    for (auto const &file : std::filesystem::directory_iterator(snet::constants::DIRECTORY_SERVICE_PRIVATE_DIR)) {
+        std::filesystem::permissions(file, std::filesystem::perms::owner_all, std::filesystem::perm_options::replace);
+        std::filesystem::remove(file);
+    }
+    snet::utils::write_file(snet::constants::DIRECTORY_SERVICE_PUBLIC_FILE, nlohmann::json::object().dump(4));
+
+    for (auto i = 0; i < DIR_NODE_COUNT; ++i) {
+        const auto username = std::string("snetwork.directory-service.") + std::to_string(i);
+        if (auto info = snet::managers::ds::validate_directory_profile(username); info.has_value()) {
+            snet::managers::keys::del_info(std::get<0>(*info));
+        }
+        snet::managers::ds::create_directory_profile(username);
+    }
+}
+
+
+auto create_nodes() -> void {
+    for (auto i = 0; i < NODE_COUNT; ++i) {
+        const auto username = std::string("node.") + std::to_string(i);
+        const auto password = std::string("pass.") + std::to_string(i);
+        if (auto info = snet::managers::ds::validate_directory_profile(username); info.has_value()) {
+            snet::managers::keys::del_info(std::get<0>(*info));
+        }
+        snet::managers::profile::delete_profile(username, password);
+        snet::managers::profile::create_profile(username, password);
+    }
+}
+
+
+auto main(int argc, char *argv[]) -> int {
+    create_directory_services();
+    create_nodes();
+
+    QApplication app(argc, argv);
+    const auto gui = new TestGui();
+    return QApplication::exec();
+}
+
+
+#include "test.moc"
