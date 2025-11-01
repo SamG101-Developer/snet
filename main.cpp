@@ -107,7 +107,7 @@ auto test_sockets() -> void {
         const auto socket = snet::net::Socket();
         socket.bind(12345);
         socket.send(data, std::string(""), 12346);
-        auto recv_data = socket.recv();
+        auto [recv_data, _, _] = socket.recv();
         spdlog::info("S1 Received data" + std::string(recv_data.begin(), recv_data.end()));
     };
 
@@ -117,7 +117,7 @@ auto test_sockets() -> void {
         const auto socket = snet::net::Socket();
         socket.bind(12346);
         socket.send(data, std::string(""), 12345);
-        auto recv_data = socket.recv();
+        auto [recv_data, _, _] = socket.recv();
         spdlog::info("S2 Received data" + std::string(recv_data.begin(), recv_data.end()));
     };
 

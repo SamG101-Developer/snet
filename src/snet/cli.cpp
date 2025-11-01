@@ -45,24 +45,31 @@ auto snet::cli::create_cli(const int argc, char **argv) -> int {
 
     if (create_profile->parsed()) {
         std::cout << "Creating profile: " << username << "\n";
-    }
-    else if (list_profiles->parsed()) {
-        std::cout << "Listing profiles\n";
+        managers::cmd::handle_create_profile(username, password);
     }
     else if (delete_profile->parsed()) {
         std::cout << "Deleting profile: " << username << "\n";
+        managers::cmd::handle_delete_profile(username, password);
+    }
+    else if (list_profiles->parsed()) {
+        std::cout << "Listing profiles\n";
+        managers::cmd::handle_list_profiles();
     }
     else if (join->parsed()) {
         std::cout << "Joining network with profile: " << username << "\n";
+        managers::cmd::handle_join(username, password);
     }
     else if (directory->parsed()) {
         std::cout << "Joining as directory node: " << username << "\n";
+        managers::cmd::handle_directory(username);
     }
     else if (exit_net->parsed()) {
         std::cout << "Exiting network\n";
+        managers::cmd::handle_exit();
     }
     else if (clear->parsed()) {
         std::cout << "Clearing terminal\n";
+        managers::cmd::handle_clear();
     }
 
     return 0;

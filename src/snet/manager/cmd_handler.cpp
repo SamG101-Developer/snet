@@ -9,76 +9,108 @@ import snet.nodes.node;
 import snet.utils.encoding;
 
 
-namespace snet::managers::cmd {
-    auto handle_profile(
-        std::vector<std::string> const &args)
+export namespace snet::managers::cmd {
+    auto handle_list_profiles()
         -> void;
 
-    auto handle_clear(
-        std::vector<std::string> const &args)
+    auto handle_create_profile(
+        std::string const &username,
+        std::string const &password)
+        -> void;
+
+    auto handle_delete_profile(
+        std::string const &username,
+        std::string const &password)
         -> void;
 
     auto handle_directory(
-        std::vector<std::string> const &args)
+        std::string const &username)
         -> void;
 
     auto handle_join(
-        std::vector<std::string> const &args)
+        std::string const &username,
+        std::string const &password)
+        -> void;
+
+    auto handle_exit()
+        -> void;
+
+    auto handle_clear()
         -> void;
 }
 
 
-auto snet::managers::cmd::handle_profile(
-    std::vector<std::string> const &args)
+auto snet::managers::cmd::handle_list_profiles()
     -> void {
-    const auto &subcommand = args[1];
-    if (subcommand == "create") {
-        profile::create_profile(args[2], args[3]);
-    }
-    else if (subcommand == "delete") {
-        profile::delete_profile(args[2], args[3]);
-    }
-    else if (subcommand == "list") {
-        const auto usernames = profile::list_usernames();
-        for (const auto &username : usernames) { spdlog::info(username); }
+    for (const auto &username : profile::list_usernames()) {
+        spdlog::info(username);
     }
 }
 
 
-auto snet::managers::cmd::handle_clear(
-    std::vector<std::string> const &args)
+auto snet::managers::cmd::handle_create_profile(
+    std::string const &username,
+    std::string const &password)
     -> void {
-#ifdef _WIN32
-    std::system("cls");
-#else
-    std::system("clear");
-#endif
+    profile::create_profile(username, password);
+}
+
+
+auto snet::managers::cmd::handle_delete_profile(
+    std::string const &username,
+    std::string const &password)
+    -> void {
+    profile::delete_profile(username, password);
 }
 
 
 auto snet::managers::cmd::handle_directory(
-    std::vector<std::string> const &args)
+    std::string const &username)
     -> void {
-    const auto wrapped_info = ds::validate_directory_profile(args[1]);
+    const auto wrapped_info = ds::validate_directory_profile(username);
     if (not wrapped_info.has_value()) {
         spdlog::error("Invalid directory profile credentials.");
         return;
     }
+
+    spdlog::info("Launching directory node");
     const auto &info = *wrapped_info;
-    auto directory_node = nodes::DirectoryNode(utils::encode_string(args[1]), std::get<0>(info), std::get<2>(info), std::get<4>(info));
+    auto directory_node = nodes::DirectoryNode(utils::encode_string(username), std::get<0>(info), std::get<2>(info), std::get<4>(info));
     while (true) {}
 }
 
 
 auto snet::managers::cmd::handle_join(
-    std::vector<std::string> const &args)
+    std::string const &username,
+    std::string const &password)
     -> void {
-    const auto wrapped_info = profile::validate_profile(args[1], args[2]);
+    const auto wrapped_info = profile::validate_profile(username, password);
     if (not wrapped_info.has_value()) {
         spdlog::error("Invalid profile credentials.");
         return;
     }
+
+    spdlog::info("Lauching node");
     const auto &info = *wrapped_info;
     auto node = nodes::Node(std::get<0>(info), std::get<2>(info));
     while (true) {}
+}
+
+
+auto snet::managers::cmd::handle_exit()
+    -> void {
+    // Exit the application.
+    spdlog::info("Exiting application...");
+    std::exit(0);
+}
+
+
+auto snet::managers::cmd::handle_clear()
+    -> void {
+    // Clear the console screen.
+#ifdef _WIN32
+    std::system("cls");
+#else
+    std::system("clear");
+#endif
 }

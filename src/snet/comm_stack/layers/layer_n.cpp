@@ -18,11 +18,11 @@ export namespace snet::comm_stack::layers {
         net::Socket *m_sock;
         spdlog::logger m_logger;
 
+    public:
         LayerN(
             credentials::KeyStoreData *self_node_info,
             net::Socket *sock);
 
-    public:
         virtual ~LayerN() = default;
 
     protected:
