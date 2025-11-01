@@ -102,7 +102,7 @@ public:
 
         for (auto i = 0uz; i < log_display->layout()->count(); ++i) {
             auto log_message = log_display->nth_message(i);
-            qobject_cast<LogMessageDisplay*>(scroller->widget())->add_new_log_message(std::move(log_message));
+            qobject_cast<LogMessageDisplay*>(scroller->widget())->add_new_log_message(log_message);
         }
         scroller->verticalScrollBar()->setValue(scroller->verticalScrollBar()->maximum());
 
@@ -113,10 +113,14 @@ public:
     auto run_node_process() const -> void {
         const auto username = std::string("node.") + std::to_string(node_id);
         const auto password = std::string("pass.") + std::to_string(node_id);
-        const auto cmd = std::string("sudo ../snet join --name ") + username + std::string(" --pass ") + password;
+        const auto cmd = std::string("../snet join --name ") + username + std::string(" --pass ") + password;
 
         // Create the process and link the logging to pipes.
         const auto process = new QProcess();
+        QStringList env;
+        env << "HOME=" + QString::fromLocal8Bit(std::getenv("HOME"));
+        env << "DISPLAY=" + QString::fromLocal8Bit(std::getenv("DISPLAY"));
+        process->setEnvironment(env);
         process->setProgram("/bin/sh");
         process->setArguments({"-c", cmd.c_str()});
         process->setProcessChannelMode(QProcess::MergedChannels);
@@ -134,10 +138,14 @@ public:
         const auto ds_info = snet::utils::read_file(snet::constants::DIRECTORY_SERVICE_PRIVATE_DIR / (name + ".json"));
         const auto ds_json = nlohmann::json::parse(ds_info);
         const auto key = snet::utils::from_hex<true>(ds_json.at("secret_key").get<std::string>());
-        const auto cmd = std::string("sudo ../snet directory --name ") + name;
+        const auto cmd = std::string("../snet directory --name ") + name;
 
         // Create the process and link the logging to pipes.
         const auto process = new QProcess();
+        QStringList env;
+        env << "HOME=" + QString::fromLocal8Bit(std::getenv("HOME"));
+        env << "DISPLAY=" + QString::fromLocal8Bit(std::getenv("DISPLAY"));
+        process->setEnvironment(env);
         process->setProgram("/bin/sh");
         process->setArguments({"-c", cmd.c_str()});
         process->setProcessChannelMode(QProcess::MergedChannels);

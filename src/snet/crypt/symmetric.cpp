@@ -1,6 +1,7 @@
 export module snet.crypt.symmetric;
 import std;
 import openssl;
+
 import snet.crypt.bytes;
 
 
@@ -10,9 +11,9 @@ constexpr auto TAG_LEN = 16;
 
 export namespace snet::crypt::symmetric {
     struct CipherText {
-        bytes::SecureBytes ct;
-        bytes::SecureBytes iv;
-        bytes::SecureBytes tag;
+        bytes::RawBytes ct;
+        bytes::RawBytes iv;
+        bytes::RawBytes tag;
 
         template <typename Ar>
         auto serialize(Ar &ar) -> void;
@@ -27,9 +28,9 @@ export namespace snet::crypt::symmetric {
 
     auto decrypt(
         const bytes::SecureBytes &key,
-        const bytes::SecureBytes &ct,
-        const bytes::SecureBytes &iv,
-        const bytes::SecureBytes &tag)
+        const bytes::RawBytes &ct,
+        const bytes::RawBytes &iv,
+        const bytes::RawBytes &tag)
         -> bytes::SecureBytes;
 }
 
@@ -54,7 +55,7 @@ auto snet::crypt::symmetric::encrypt(
     const bytes::SecureBytes &pt)
     -> CipherText {
     // Create the initialization vector.
-    auto iv = bytes::SecureBytes(IV_LEN);
+    auto iv = bytes::RawBytes(IV_LEN);
     openssl::RAND_priv_bytes(iv.data(), IV_LEN);
 
     // Create the context and set the IV length.
@@ -65,13 +66,13 @@ auto snet::crypt::symmetric::encrypt(
     openssl::EVP_CIPHER_CTX_set_key_length(ctx, KEY_LEN);
 
     // Encrypt the plaintext.
-    auto ct = bytes::SecureBytes(pt.size());
+    auto ct = bytes::RawBytes(pt.size());
     auto temp_len = 0;
     openssl::EVP_EncryptUpdate(ctx, ct.data(), &temp_len, pt.data(), pt.size());
     openssl::EVP_EncryptFinal_ex(ctx, ct.data() + temp_len, &temp_len);
 
     // Generate the authentication tag.
-    auto tag = bytes::SecureBytes(TAG_LEN);
+    auto tag = bytes::RawBytes(TAG_LEN);
     openssl::EVP_CIPHER_CTX_ctrl(ctx, openssl::EVP_CTRL_AEAD_GET_TAG, TAG_LEN, tag.data());
     openssl::EVP_CIPHER_CTX_free(ctx);
 
@@ -82,9 +83,9 @@ auto snet::crypt::symmetric::encrypt(
 
 auto snet::crypt::symmetric::decrypt(
     const bytes::SecureBytes &key,
-    const bytes::SecureBytes &ct,
-    const bytes::SecureBytes &iv,
-    const bytes::SecureBytes &tag)
+    const bytes::RawBytes &ct,
+    const bytes::RawBytes &iv,
+    const bytes::RawBytes &tag)
     -> bytes::SecureBytes {
     // Create the context.
     const auto ctx = openssl::EVP_CIPHER_CTX_new();

@@ -3,6 +3,7 @@ import spdlog;
 import std;
 
 import snet.comm_stack.request;
+import snet.credentials.keyring;
 import snet.crypt.asymmetric;
 import snet.crypt.bytes;
 import snet.crypt.certificate;
@@ -11,6 +12,7 @@ import snet.crypt.hash;
 import snet.crypt.random;
 import snet.net.socket;
 import snet.utils.assert;
+import snet.manager.cmd_handler;
 
 import snet.boot;
 import snet.cli;
@@ -129,6 +131,7 @@ auto test_sockets() -> void {
 
 auto main(const int argc, char **argv) -> int {
     snet::boot::boot_serex();
+    spdlog::set_level(spdlog::level::level_enum::info);
 
     openssl::SSL_load_error_strings();
     openssl::SSL_library_init();
@@ -141,9 +144,10 @@ auto main(const int argc, char **argv) -> int {
     // test_sockets();
     // test_signature_functions();
 
-    const auto ret = snet::cli::create_cli(argc, argv);
+    // const auto ret = snet::cli::create_cli(argc, argv);
+    snet::managers::cmd::handle_join("node.0", "pass.0");
 
     openssl::CRYPTO_secure_malloc_done();
 
-    return ret;
+    return 0;
 }

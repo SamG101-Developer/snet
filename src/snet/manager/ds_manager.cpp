@@ -33,7 +33,7 @@ export namespace snet::managers::ds {
         -> std::tuple<std::string, std::string, std::uint16_t, crypt::bytes::RawBytes, crypt::bytes::RawBytes>;
 
     auto validate_directory_profile(std::string const &username)
-        -> std::optional<std::tuple<crypt::bytes::RawBytes, crypt::bytes::RawBytes, std::uint16_t, crypt::bytes::RawBytes, openssl::EVP_PKEY*>>;
+        -> std::optional<std::tuple<crypt::bytes::RawBytes, crypt::bytes::SecureBytes, std::uint16_t, crypt::bytes::RawBytes, openssl::EVP_PKEY*>>;
 
     auto load_directory_profiles()
         -> nlohmann::json;
@@ -70,13 +70,11 @@ auto snet::managers::ds::create_directory_profile(
     auto ssk_serialized = crypt::asymmetric::serialize_private(ssk);
     auto identifier = crypt::hash::sha3_256(spk_serialized);
     const auto public_directory_service_entry = nlohmann::json{
-        {
-            {"name", username},
-            {"identifier", utils::to_hex(identifier)},
-            {"public_key", utils::to_hex(spk_serialized)},
-            {"address", addr},
-            {"port", port}
-        }
+        {"name", username},
+        {"identifier", utils::to_hex(identifier)},
+        {"public_key", utils::to_hex(spk_serialized)},
+        {"address", addr},
+        {"port", port}
     };
 
     // Generate the private information for the directory service.
@@ -134,10 +132,10 @@ auto snet::managers::ds::get_random_directory_profile(
 
 auto snet::managers::ds::validate_directory_profile(
     std::string const &username)
-    -> std::optional<std::tuple<crypt::bytes::RawBytes, crypt::bytes::RawBytes, std::uint16_t, crypt::bytes::RawBytes, openssl::EVP_PKEY*>> {
+    -> std::optional<std::tuple<crypt::bytes::RawBytes, crypt::bytes::SecureBytes, std::uint16_t, crypt::bytes::RawBytes, openssl::EVP_PKEY*>> {
     // Hash the username and password.
     const auto hashed_username = crypt::hash::sha3_256(utils::encode_string(username));
-    const auto hashed_password = crypt::hash::sha3_256(utils::encode_string(""));
+    const auto hashed_password = crypt::hash::sha3_256<true>({});
     const auto current_profiles = load_directory_profiles();
 
     // Check if the username exists.

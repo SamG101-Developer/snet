@@ -39,14 +39,14 @@ export namespace snet::managers::profile {
     auto validate_profile(
         std::string const &username,
         std::string const &password)
-        -> std::optional<std::tuple<crypt::bytes::RawBytes, crypt::bytes::RawBytes, std::uint16_t>>;
+        -> std::optional<std::tuple<crypt::bytes::RawBytes, crypt::bytes::SecureBytes, std::uint16_t>>;
 
     auto list_usernames()
         -> std::vector<std::string>;
 
     auto generate_profile_cert(
         crypt::bytes::RawBytes const &hashed_username,
-        crypt::bytes::RawBytes const &hashed_password,
+        crypt::bytes::SecureBytes const &hashed_password,
         crypt::bytes::RawBytes const &identifier,
         openssl::EVP_PKEY *ssk,
         std::uint16_t port)
@@ -67,7 +67,7 @@ auto snet::managers::profile::create_profile(
     -> void {
     // Hash the username and password.
     auto hashed_username = crypt::hash::sha3_256(utils::encode_string(username));
-    auto hashed_password = crypt::hash::sha3_256(utils::encode_string(password));
+    auto hashed_password = crypt::hash::sha3_256<true>(utils::encode_string(password));
     auto current_profiles = load_current_profiles();
 
     // Check if the username already exists.
@@ -89,12 +89,10 @@ auto snet::managers::profile::create_profile(
 
     // Generate the profile information for the user.
     const auto profile_entry = nlohmann::json{
-        {
-            {"username", username},
-            {"hashed_username", utils::to_hex(hashed_username)},
-            {"hashed_password", utils::to_hex(hashed_password)},
-            {"port", port}
-        }
+        {"username", username},
+        {"hashed_username", utils::to_hex(hashed_username)},
+        {"hashed_password", utils::to_hex(hashed_password)},
+        {"port", port}
     };
     current_profiles[username] = profile_entry;
     utils::write_file(constants::PROFILE_FILE, current_profiles.dump(4));
@@ -124,35 +122,38 @@ auto snet::managers::profile::delete_profile(
 
     // Delete the profile cache file.
     std::filesystem::remove(constants::PROFILE_CACHE_DIR / (utils::to_hex(hashed_username) + ".json"));
+    std::filesystem::remove(constants::KEYRING_DIR / (utils::to_hex(hashed_username) + ".json"));
 }
 
 
 auto snet::managers::profile::validate_profile(
     std::string const &username,
     std::string const &password)
-    -> std::optional<std::tuple<crypt::bytes::RawBytes, crypt::bytes::RawBytes, std::uint16_t>> {
+    -> std::optional<std::tuple<crypt::bytes::RawBytes, crypt::bytes::SecureBytes, std::uint16_t>> {
     // Hash the username and password.
     auto hashed_username = crypt::hash::sha3_256(utils::encode_string(username));
-    auto hashed_password = crypt::hash::sha3_256(utils::encode_string(password));
+    auto hashed_password = crypt::hash::sha3_256<true>(utils::encode_string(password));
     auto current_profiles = load_current_profiles();
 
     // Check if the username exists.
     if (not current_profiles.contains(username)) {
-        spdlog::error(std::format("Profile validation failed: username '{}' does not exist.", username));
+        spdlog::warn(std::format("Profile validation failed: username '{}' does not exist.", username));
         return std::nullopt;
     }
 
     // Check if the password matches.
-    const auto stored_hashed_password = utils::from_hex(current_profiles.at(username).at("hashed_password").get<std::string>());
+    const auto stored_hashed_password = utils::from_hex<true>(current_profiles.at(username).at("hashed_password").get<std::string>());
     if (stored_hashed_password != hashed_password) {
-        spdlog::error(std::format("Profile validation failed: incorrect password for username '{}'.", username));
+        spdlog::warn(std::format("Profile validation failed: incorrect password for username '{}'.", username));
         return std::nullopt;
     }
 
     // Create the cache if it doesn't exist.
     const auto cache_path = constants::PROFILE_CACHE_DIR / (utils::to_hex(hashed_username) + ".json");
+    const auto keyring_path = constants::KEYRING_DIR / (utils::to_hex(hashed_username) + ".json");
     if (not std::filesystem::exists(cache_path)) {
         utils::write_file(cache_path, nlohmann::json::object().dump(4));
+        utils::write_file(keyring_path, "");
     }
 
     // Return the profile information.
@@ -176,7 +177,7 @@ auto snet::managers::profile::list_usernames()
 
 auto snet::managers::profile::generate_profile_cert(
     crypt::bytes::RawBytes const &hashed_username,
-    crypt::bytes::RawBytes const &hashed_password,
+    crypt::bytes::SecureBytes const &hashed_password,
     crypt::bytes::RawBytes const &identifier,
     openssl::EVP_PKEY *ssk,
     const std::uint16_t port)
@@ -192,7 +193,13 @@ auto snet::managers::profile::generate_profile_cert(
 
 auto snet::managers::profile::load_current_profiles()
     -> nlohmann::json {
+    spdlog::info(std::format("Loading current profiles from file: {}", constants::PROFILE_FILE.string()));
     const auto profile_info = utils::read_file(constants::PROFILE_FILE);
+
+    // log existing profiles
+    const auto existing_profiles = nlohmann::json::parse(profile_info);
+    spdlog::info(std::format("Found {} profiles:", existing_profiles.size()));
+
     return nlohmann::json::parse(profile_info);
 }
 
@@ -201,7 +208,7 @@ auto snet::managers::profile::has_password(
     std::string const &username)
     -> bool {
     const auto current_profiles = load_current_profiles();
-    const auto hashed_empty_password = crypt::hash::sha3_256(utils::encode_string(""));
+    const auto hashed_empty_password = crypt::hash::sha3_256({});
     const auto stored_hashed_password = utils::from_hex(current_profiles.at(username).at("hashed_password").get<std::string>());
     return stored_hashed_password != hashed_empty_password;
 }

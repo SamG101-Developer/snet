@@ -12,7 +12,7 @@ export namespace snet::credentials {
         crypt::bytes::RawBytes public_key;
         crypt::bytes::RawBytes certificate;
         crypt::bytes::RawBytes hashed_username;
-        crypt::bytes::RawBytes hashed_password;
+        crypt::bytes::SecureBytes hashed_password;
         std::uint16_t port;
 
         template <typename Ar>

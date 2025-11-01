@@ -42,6 +42,14 @@ export namespace snet::utils {
         return {str.begin(), str.end()};
     }
 
+    template <bool Secure = false>
+    auto encode_string(
+        const std::string_view str) ->
+        std::conditional_t<Secure, crypt::bytes::SecureBytes, crypt::bytes::RawBytes> {
+        // Encode the string to bytes using UTF-8 encoding.
+        return {str.begin(), str.end()};
+    }
+
     inline auto decode_bytes(
         const std::span<const std::uint8_t> data) ->
         std::string {

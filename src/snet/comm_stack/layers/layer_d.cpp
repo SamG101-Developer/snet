@@ -197,13 +197,13 @@ auto snet::comm_stack::layers::LayerD::handle_bootstrap_response(
     auto file_data = nlohmann::json::parse(utils::read_file(m_node_cache_file_path));
     for (auto &entry : ConnectionCache::cached_nodes) {
         const auto json_entry = nlohmann::json{
-            {
-                {"address", std::get<0>(entry)},
-                {"port", std::get<1>(entry)},
-                {"identifier", utils::to_hex(std::get<2>(entry))}
-            }
+            {"address", std::get<0>(entry)},
+            {"port", std::get<1>(entry)},
+            {"identifier", utils::to_hex(std::get<2>(entry))}
         };
         file_data.emplace_back(json_entry);
     }
-    utils::write_file(m_node_cache_file_path, file_data.dump(4));
+    if (not std::filesystem::exists(m_node_cache_file_path)) {
+        utils::write_file(m_node_cache_file_path, file_data.dump(4));
+    }
 }

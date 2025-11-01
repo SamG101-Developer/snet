@@ -12,6 +12,7 @@ export namespace snet::nodes {
     public:
         Node(
             crypt::bytes::RawBytes const &hashed_username,
+            crypt::bytes::SecureBytes const &hashed_password,
             std::uint16_t port);
     };
 }
@@ -19,8 +20,9 @@ export namespace snet::nodes {
 
 snet::nodes::Node::Node(
     crypt::bytes::RawBytes const &hashed_username,
+    crypt::bytes::SecureBytes const &hashed_password,
     const std::uint16_t port) :
-    AbstractNode(*managers::keys::get_info(hashed_username), comm_stack::CommStack(port)) {
+    AbstractNode(*managers::keys::get_info(hashed_username, hashed_password), comm_stack::CommStack(port)) {
     // Create the communication stack, and the bootstrapper layer.
     m_comm_stack.setup_boostrap(std::make_unique<comm_stack::layers::LayerD>(
         &m_node_info, m_comm_stack.get_socket(), false, nullptr, m_comm_stack.get_layer_4()));

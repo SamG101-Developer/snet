@@ -1,97 +1,47 @@
-module;
-#include <libsecret/secret.h>
-
 export module snet.credentials.keyring;
+import serex.serialize;
 import spdlog;
 import std;
 
-using namespace std::literals::string_literals;
-
-
-static constexpr SecretSchema MY_SCHEMA = {
-    "com.snet.credentials", SECRET_SCHEMA_NONE,
-    {
-        {"service", SECRET_SCHEMA_ATTRIBUTE_STRING},
-        {"username", SECRET_SCHEMA_ATTRIBUTE_STRING},
-        {nullptr, SECRET_SCHEMA_ATTRIBUTE_STRING}
-    }
-};
+import snet.constants;
+import snet.crypt.bytes;
+import snet.crypt.symmetric;
+import snet.crypt.hash;
+import snet.utils.encoding;
+import snet.utils.files;
 
 
 export namespace snet::credentials::keyring {
     auto set_password(
-        const std::string_view user,
+        crypt::bytes::RawBytes hashed_username,
+        crypt::bytes::SecureBytes hashed_password,
         const std::string_view info)
-        -> bool {
-        GError *error = nullptr;
-        // Store the password in the keyring.
-        const auto ok = secret_password_store_sync(
-            &MY_SCHEMA,
-            SECRET_COLLECTION_DEFAULT,
-            ("Private key for "s + user).c_str(),
-            info.data(),
-            nullptr,
-            &error,
-            "service", "snet-credentials",
-            "username", user.data(),
-            nullptr
-        );
-
-        // Check for errors.
-        if (not ok) {
-            spdlog::warn(std::format("Failed to store password in keyring: {}", error->message));
-            g_error_free(error);
-            return false;
-        }
-        return true;
+        -> void {
+        // Encrypt "info" based on user and store it in the keyring.
+        auto ct = crypt::symmetric::encrypt(hashed_password, utils::encode_string<true>(info));
+        const auto serialize = serex::save(ct);
+        utils::write_file(constants::KEYRING_DIR / utils::to_hex(hashed_username), serialize);
     }
 
     auto get_password(
-        const std::string_view user)
+        crypt::bytes::RawBytes hashed_username,
+        crypt::bytes::SecureBytes hashed_password)
         -> std::string {
-        // Retrieve the password from the keyring.
-        GError *error = nullptr;
-        const auto info = secret_password_lookup_sync(
-            &MY_SCHEMA,
-            nullptr,
-            &error,
-            "service", "snet-credentials",
-            "username", user.data(),
-            nullptr
-        );
+        // Retrieve the encrypted info from the keyring and decrypt it based on user.
+        const auto path = constants::KEYRING_DIR / utils::to_hex(hashed_username);
+        const auto serialized = utils::decode_bytes(utils::read_file(path));
+        const auto [ct, iv, tag] = serex::load<crypt::symmetric::CipherText>(serialized);
 
-        // Check for errors.
-        if (info == nullptr) {
-            spdlog::warn(std::format("Failed to lookup password in keyring: {}", error->message));
-            g_error_free(error);
-            return "";
-        }
-
-        auto result = std::string{info};
-        secret_password_free(info);
-        return result;
+        // Decrypt and return the info.
+        const auto decrypted = crypt::symmetric::decrypt(hashed_password, ct, iv, tag);
+        return utils::decode_bytes(decrypted);
     }
 
     auto del_password(
-        const std::string_view user)
+        crypt::bytes::RawBytes hashed_username)
         -> bool {
-        // Delete the password from the keyring.
-        GError *error = nullptr;
-        const auto ok = secret_password_clear_sync(
-            &MY_SCHEMA,
-            nullptr,
-            &error,
-            "service", "snet-credentials",
-            "username", user.data(),
-            nullptr
-        );
-
-        // Check for errors.
-        if (not ok) {
-            spdlog::warn(std::format("Failed to delete password from keyring: {}", error->message));
-            g_error_free(error);
-            return false;
-        }
-        return true;
+        // Delete the password entry for the user from the keyring.
+        const auto path = constants::KEYRING_DIR / utils::to_hex(hashed_username);
+        return std::filesystem::remove(path);
     }
 }

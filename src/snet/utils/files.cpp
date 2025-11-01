@@ -1,10 +1,19 @@
-module;
-
 export module snet.utils.files;
 import std;
+import sys;
 
 
 export namespace snet::utils {
+    auto lock_file(const int fd) -> void {
+        // Exclusively lock a file at the OS level.
+        sys::flock(fd, 2);
+    }
+
+    auto unlock_file(const int fd) -> void {
+        // Unlock a file at the OS level.
+        sys::flock(fd, 8);
+    }
+
     auto read_file(std::filesystem::path const &file_path) -> std::vector<std::uint8_t> {
         // Open the file in binary mode and read its contents into a vector of bytes.
         auto file = std::ifstream(file_path, std::ios::binary);

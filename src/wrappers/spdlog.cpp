@@ -14,4 +14,9 @@ export namespace spdlog {
     using spdlog::warn;
     using spdlog::error;
     using spdlog::critical;
+    using spdlog::set_level;
+
+    namespace level {
+        using spdlog::level::level_enum;
+    }
 }

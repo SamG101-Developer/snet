@@ -75,7 +75,8 @@ auto snet::managers::cmd::handle_directory(
 
     spdlog::info("Launching directory node");
     const auto &info = *wrapped_info;
-    auto directory_node = nodes::DirectoryNode(utils::encode_string(username), std::get<0>(info), std::get<2>(info), std::get<4>(info));
+    auto directory_node = nodes::DirectoryNode(
+        utils::encode_string(username), std::get<0>(info), std::get<1>(info), std::get<2>(info), std::get<4>(info));
     while (true) {}
 }
 
@@ -90,9 +91,10 @@ auto snet::managers::cmd::handle_join(
         return;
     }
 
-    spdlog::info("Lauching node");
+    spdlog::info("Launching node");
     const auto &info = *wrapped_info;
-    auto node = nodes::Node(std::get<0>(info), std::get<2>(info));
+    auto node = nodes::Node(
+        std::get<0>(info), std::get<1>(info), std::get<2>(info));
     while (true) {}
 }
 
