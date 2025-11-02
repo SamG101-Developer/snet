@@ -84,7 +84,8 @@ snet::comm_stack::layers::Layer4::Layer4(
     credentials::KeyStoreData *self_node_info,
     net::Socket *sock) :
     LayerN(self_node_info, sock),
-    m_static_skey(crypt::asymmetric::load_private_key(self_node_info->secret_key)) {
+    m_static_skey(crypt::asymmetric::load_private_key(self_node_info->secret_key)),
+    m_self_cert(self_node_info->certificate) {
     m_logger = utils::create_logger("Layer4");
     m_logger->info("Layer4 initialized");
 }

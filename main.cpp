@@ -105,24 +105,30 @@ import snet.cli;
 //
 // auto test_sockets() -> void {
 //     // 2 UDP sockets talking to each other
-//     auto socket_steps_1 = [] {
+//     std::barrier sync_point(2);
+//
+//     auto socket_steps_1 = [&sync_point] {
 //         spdlog::info("S1 Sending data");
 //         auto data = std::vector<std::uint8_t>{'h', 'e', 'l', 'l', 'o'};
 //         const auto socket = snet::net::Socket();
 //         socket.bind(12345);
-//         socket.send(data, std::string(""), 12346);
+//         sync_point.arrive_and_wait();
+//
+//         socket.send(data, std::string("127.0.0.1"), 12346);
 //         auto [recv_data, _, _] = socket.recv();
-//         spdlog::info("S1 Received data" + std::string(recv_data.begin(), recv_data.end()));
+//         spdlog::info("S1 Received data: " + std::string(recv_data.begin(), recv_data.end()));
 //     };
 //
-//     auto socket_steps_2 = [] {
+//     auto socket_steps_2 = [&sync_point] {
 //         spdlog::info("S2 Sending data");
 //         auto data = std::vector<std::uint8_t>{'g', 'o', 'o', 'd', 'b', 'y', 'e'};
 //         const auto socket = snet::net::Socket();
 //         socket.bind(12346);
-//         socket.send(data, std::string(""), 12345);
+//         sync_point.arrive_and_wait();
+//
+//         socket.send(data, std::string("127.0.0.1"), 12345);
 //         auto [recv_data, _, _] = socket.recv();
-//         spdlog::info("S2 Received data" + std::string(recv_data.begin(), recv_data.end()));
+//         spdlog::info("S2 Received data: " + std::string(recv_data.begin(), recv_data.end()));
 //     };
 //
 //     auto socket_thread_1 = std::jthread(socket_steps_1);
@@ -149,16 +155,16 @@ auto main(const int argc, char **argv) -> int {
     auto ret = 0;
     ret = snet::cli::create_cli(argc, argv);
 
-    // constexpr auto i = 0;
-    // const auto username = std::string("node.") + std::to_string(i);
-    // const auto password = std::string("pass.") + std::to_string(i);
-    // snet::managers::profile::delete_profile(username, password);
-    // snet::managers::profile::create_profile(username, password);
-    // snet::managers::cmd::handle_join(username, password);
-
-    // const auto name = std::string("snetwork.directory-service.") + std::to_string(0);
-    // snet::managers::ds::create_directory_profile(name);
+    const auto name = std::string("snetwork.directory-service.") + std::to_string(0);
+    snet::managers::ds::create_directory_profile(name);
     // snet::managers::cmd::handle_directory(name);
+
+    constexpr auto i = 0;
+    const auto username = std::string("node.") + std::to_string(i);
+    const auto password = std::string("pass.") + std::to_string(i);
+    // snet::managers::profile::delete_profile(username, password);
+    snet::managers::profile::create_profile(username, password);
+    snet::managers::cmd::handle_join(username, password);
 
     openssl::CRYPTO_secure_malloc_done();
 

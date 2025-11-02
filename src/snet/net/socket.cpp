@@ -4,6 +4,7 @@ module;
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #else
+#include <errno.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
@@ -39,6 +40,8 @@ namespace snet::net::internal {
     inline std::function setsockopt = ::setsockopt;
     inline std::function htons = ::htons;
     inline std::function inet_pton = ::inet_pton;
+    inline std::function inet_ntop = ::inet_ntop;
+    inline std::function ntohs = ::ntohs;
 #endif
     constexpr auto AF_INET4_ = AF_INET;
     constexpr auto SOCK_DGRAM_ = SOCK_DGRAM;
@@ -102,28 +105,41 @@ snet::net::Socket::~Socket() {
 }
 
 
-auto snet::net::Socket::init_socket() -> void {
+auto snet::net::Socket::init_socket()
+    -> void {
     constexpr auto opt = 1;
     this->socket_fd = internal::socket(internal::AF_INET4_, internal::SOCK_DGRAM_, internal::IPPROTO_UDP_);
-    internal::setsockopt(this->socket_fd, internal::SOL_SOCKET_, internal::SO_REUSEADDR_, &opt, sizeof(opt));
+    if (this->socket_fd == static_cast<internal::socket_t>(-1)) {
+        throw std::system_error(errno, std::system_category(), "Failed to create socket");
+    }
+
+    if (internal::setsockopt(this->socket_fd, internal::SOL_SOCKET_, internal::SO_REUSEADDR_, &opt, sizeof(opt)) < 0) {
+        throw std::system_error(errno, std::system_category(), "Failed to set socket options");
+    }
 }
 
 
-auto snet::net::Socket::bind(const std::uint16_t port) const -> void {
+auto snet::net::Socket::bind(
+    const std::uint16_t port) const
+    -> void {
+    // Create the address structure for IPv4.
     auto addr = internal::sockaddr_in4{};
     std::memset(&addr, 0, sizeof(addr));
-
     addr.sin_family = internal::AF_INET4_;
     addr.sin_port = internal::htons(port);
     addr.sin_addr = internal::in4addr_any;
 
-    internal::bind(this->socket_fd, reinterpret_cast<internal::sockaddr*>(&addr), sizeof(addr));
+    if (internal::bind(this->socket_fd, reinterpret_cast<internal::sockaddr*>(&addr), sizeof(addr)) < 0) {
+        throw std::system_error(errno, std::system_category(), "Failed to bind socket to port " + std::to_string(port));
+    }
 }
 
 
 auto snet::net::Socket::close() -> void {
     if (this->socket_fd != 0) {
-        internal::close_socket(this->socket_fd);
+        if (internal::close_socket(this->socket_fd) < 0) {
+            throw std::system_error(errno, std::system_category(), "Failed to close socket");
+        }
         this->socket_fd = 0;
     }
 }
@@ -136,53 +152,65 @@ auto snet::net::Socket::send(
     // Create the address structure for IPv4.
     auto addr = internal::sockaddr_in4{};
     std::memset(&addr, 0, sizeof(addr));
-
-    // Set the address family, port and IP address.
     addr.sin_family = internal::AF_INET4_;
     addr.sin_port = internal::htons(port);
-    internal::inet_pton(internal::AF_INET4_, ip.c_str(), &addr.sin_addr);
+    if (internal::inet_pton(internal::AF_INET4_, ip.c_str(), &addr.sin_addr) <= 0) {
+        throw std::system_error(errno, std::system_category(), "Invalid IP address: " + ip);
+    }
 
     // Add a frame header specifying the length of the data (size_t, so 8 byte header).
     const auto data_size = data.size();
-    auto buffer = std::vector<uint8_t>(data.size() + sizeof(std::size_t));
+    auto buffer = std::vector<uint8_t>(sizeof(std::size_t) + data_size);
     std::memcpy(buffer.data(), &data_size, sizeof(std::size_t));
-    std::memcpy(buffer.data() + sizeof(std::size_t), data.data(), data.size());
+    std::memcpy(buffer.data() + sizeof(std::size_t), data.data(), data_size);
 
-    // Lock the mutex to ensure thread safety, and send the data.
-    internal::send_to(
-        this->socket_fd, data.data(), data.size(), 0, reinterpret_cast<internal::sockaddr*>(&addr), sizeof(addr));
+    // Send the data.
+    const auto sent = internal::send_to(
+        this->socket_fd, buffer.data(), buffer.size(), 0,
+        reinterpret_cast<internal::sockaddr*>(&addr), sizeof(addr));
+
+    if (sent < 0 or sent != static_cast<ssize_t>(buffer.size())) {
+        throw std::system_error(errno, std::system_category(), "Failed to send data to " + ip + ":" + std::to_string(port));
+    }
 }
 
 
 auto snet::net::Socket::recv() const -> std::tuple<std::vector<std::uint8_t>, std::string, std::uint16_t> {
-    // Create a buffer to hold the received data.
-    // auto header_buffer = std::vector<std::uint8_t>(2);
-
-    // Receive the header frame to determine the length of the data.
-    // internal::recv_from(this->socket_fd, header_buffer.data(), sizeof(std::size_t), 0, nullptr, nullptr);
-    // const auto msg_len = *reinterpret_cast<std::size_t*>(header_buffer.data());
-
     // Prepare sockaddr for sender info
     sockaddr_in src_addr{};
     socklen_t addr_len = sizeof(src_addr);
 
-    // Receive the actual data based on the length specified in the header.
-    auto buffer = std::vector<std::uint8_t>(4094);
-    const auto received = internal::recv_from(this->socket_fd, buffer.data(), buffer.size(), 0, reinterpret_cast<sockaddr*>(&src_addr), &addr_len);
-    if (received < 0) {
-        return {};
+    // Create a buffer to hold the received data.
+    auto header_buffer = std::vector<std::uint8_t>(65535);
+    const auto recv_len = internal::recv_from(
+        this->socket_fd, header_buffer.data(), header_buffer.size(), 0,
+        reinterpret_cast<internal::sockaddr*>(&src_addr), &addr_len);
+
+    if (recv_len <= 0) {
+        throw std::system_error(errno, std::system_category(), "Failed to receive data");
     }
 
-    buffer.resize(received);
-    char addr_str[INET_ADDRSTRLEN]{};
-    if (inet_ntop(AF_INET, &src_addr.sin_addr, addr_str, sizeof(addr_str)) == nullptr) {
-        return {};
+    if (static_cast<std::size_t>(recv_len) < sizeof(std::size_t)) {
+        throw std::runtime_error("Received data is smaller than header size");
     }
 
-    const auto port = ntohs(src_addr.sin_port);
-    return {buffer, std::string(addr_str), static_cast<std::uint16_t>(port)};
+    // Extract the data length from the header.
+    auto data_size = 0uz;
+    std::memcpy(&data_size, header_buffer.data(), sizeof(std::size_t));
+    if (data_size + sizeof(std::size_t) != static_cast<std::size_t>(recv_len)) {
+        throw std::runtime_error("Received data size does not match header length");
+    }
 
-    // internal::recv_from(
-    //     this->socket_fd, buffer.data(), static_cast<std::int32_t>(buffer.size()), 0, nullptr, nullptr);
-    // return buffer;
+    auto payload = std::vector<std::uint8_t>(data_size);
+    std::memcpy(payload.data(), header_buffer.data() + sizeof(std::size_t), data_size);
+
+    // Extract sender IP and port
+    char ip_str[INET_ADDRSTRLEN];
+    if (internal::inet_ntop(internal::AF_INET4_, &src_addr.sin_addr, ip_str, sizeof(ip_str)) == nullptr) {
+        throw std::system_error(errno, std::system_category(), "Failed to convert sender IP to string");
+    }
+    const auto sender_ip = std::string(ip_str);
+    const auto sender_port = internal::ntohs(src_addr.sin_port);
+    return {std::move(payload), sender_ip, sender_port};
+
 }
