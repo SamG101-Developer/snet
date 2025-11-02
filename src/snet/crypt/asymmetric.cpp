@@ -57,25 +57,17 @@ export namespace snet::crypt::asymmetric {
         bytes::RawBytes const &t_id)
         -> std::unique_ptr<AAD>;
 
-    auto serialize_public(const openssl::EVP_PKEY *k)
+    auto serialize_public(const openssl::EVP_PKEY *pk)
         -> bytes::RawBytes;
 
-    auto serialize_private(const openssl::EVP_PKEY *k)
+    auto serialize_private(const openssl::EVP_PKEY *sk)
         -> bytes::SecureBytes;
 
-    auto load_kem_public_key(
+    auto load_public_key(
         const bytes::RawBytes &pk_bytes)
         -> openssl::EVP_PKEY*;
 
-    auto load_kem_private_key(
-        const bytes::SecureBytes &sk_bytes)
-        -> openssl::EVP_PKEY*;
-
-    auto load_sig_public_key(
-        const bytes::RawBytes &pk_bytes)
-        -> openssl::EVP_PKEY*;
-
-    auto load_sig_private_key(
+    auto load_private_key(
         const bytes::SecureBytes &sk_bytes)
         -> openssl::EVP_PKEY*;
 }
@@ -247,73 +239,46 @@ auto snet::crypt::asymmetric::create_aad(
 
 
 auto snet::crypt::asymmetric::serialize_public(
-    const openssl::EVP_PKEY *k)
+    const openssl::EVP_PKEY *pk)
     -> bytes::RawBytes {
-    // Get the length of the public key in bytes.
-    const auto pk_len = openssl::i2d_PUBKEY(k, nullptr);
-    auto pk = bytes::RawBytes(pk_len);
+    // Determine the length of the public key in bytes.
+    auto pk_len = 0uz;
+    openssl::EVP_PKEY_get_raw_public_key(pk, nullptr, &pk_len);
 
-    // Convert the public key to bytes.
-    auto pk_ptr = pk.data();
-    openssl::i2d_PUBKEY(k, &pk_ptr);
-    return pk;
+    // Serialize the public key to bytes.
+    auto pk_bytes = bytes::RawBytes(pk_len);
+    openssl::EVP_PKEY_get_raw_public_key(pk, pk_bytes.data(), &pk_len);
+    return pk_bytes;
 }
 
 
 auto snet::crypt::asymmetric::serialize_private(
-    const openssl::EVP_PKEY *k)
+    const openssl::EVP_PKEY *sk)
     -> bytes::SecureBytes {
+    // Determine the length of the private key in bytes.
+    auto sk_len = 0uz;
+    openssl::EVP_PKEY_get_raw_private_key(sk, nullptr, &sk_len);
 
-    // Get the length of the private key in bytes.
-    const auto sk_len = openssl::i2d_PrivateKey(k, nullptr);
-    auto sk = bytes::SecureBytes(sk_len);
-
-    // Convert the private key to bytes.
-    auto sk_ptr = sk.data();
-    openssl::i2d_PrivateKey(k, &sk_ptr);
-    return sk;
+    // Serialize the private key to bytes.
+    auto sk_bytes = bytes::SecureBytes(sk_len);
+    openssl::EVP_PKEY_get_raw_private_key(sk, sk_bytes.data(), &sk_len);
+    return sk_bytes;
 }
 
 
-auto snet::crypt::asymmetric::load_kem_public_key(
+auto snet::crypt::asymmetric::load_public_key(
     const bytes::RawBytes &pk_bytes)
     -> openssl::EVP_PKEY* {
     // Create a new public key from the bytes.
-    auto pk = openssl::EVP_PKEY_new();
-    auto pk_d = pk_bytes.data();
-    openssl::d2i_PUBKEY(&pk, &pk_d, static_cast<long>(pk_bytes.size()));
-    return pk;
+    return openssl::EVP_PKEY_new_raw_public_key_ex(
+        nullptr, SIG_SCHEME, nullptr, pk_bytes.data(), pk_bytes.size());
 }
 
 
-auto snet::crypt::asymmetric::load_kem_private_key(
+auto snet::crypt::asymmetric::load_private_key(
     const bytes::SecureBytes &sk_bytes)
     -> openssl::EVP_PKEY* {
     // Create a new private key from the bytes.
-    auto sk = openssl::EVP_PKEY_new();
-    auto sk_d = sk_bytes.data();
-    openssl::d2i_PrivateKey(openssl::OBJ_ln2nid(KEM_SCHEME), &sk, &sk_d, static_cast<long>(sk_bytes.size()));
-    return sk;
-}
-
-
-auto snet::crypt::asymmetric::load_sig_public_key(
-    const bytes::RawBytes &pk_bytes)
-    -> openssl::EVP_PKEY* {
-    // Create a new public key from the bytes.
-    auto pk = openssl::EVP_PKEY_new();
-    auto pk_d = pk_bytes.data();
-    openssl::d2i_PUBKEY(&pk, &pk_d, static_cast<long>(pk_bytes.size()));
-    return pk;
-}
-
-
-auto snet::crypt::asymmetric::load_sig_private_key(
-    const bytes::SecureBytes &sk_bytes)
-    -> openssl::EVP_PKEY* {
-    // Create a new private key from the bytes.
-    auto sk = openssl::EVP_PKEY_new();
-    auto sk_d = sk_bytes.data();
-    openssl::d2i_PrivateKey(openssl::OBJ_ln2nid(SIG_SCHEME), &sk, &sk_d, static_cast<long>(sk_bytes.size()));
-    return sk;
+    return openssl::EVP_PKEY_new_raw_private_key_ex(
+        nullptr, SIG_SCHEME, nullptr, sk_bytes.data(), sk_bytes.size());
 }

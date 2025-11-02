@@ -39,6 +39,11 @@ export namespace openssl {
     using ::X509_get_pubkey;
     using ::i2d_X509;
     using ::d2i_X509;
+    using ::d2i_AutoPrivateKey;
+    using ::EVP_PKEY_get_raw_private_key;
+    using ::EVP_PKEY_get_raw_public_key;
+    using ::EVP_PKEY_new_raw_private_key_ex;
+    using ::EVP_PKEY_new_raw_public_key_ex;
 
 #undef MBSTRING_ASC
     auto MBSTRING_ASC = MBSTRING_FLAG | 1;

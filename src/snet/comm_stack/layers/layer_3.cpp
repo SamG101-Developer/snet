@@ -16,6 +16,7 @@ import snet.comm_stack.connection;
 import snet.comm_stack.request;
 import snet.comm_stack.layers.layer_4;
 import snet.net.socket;
+import snet.utils.logging;
 
 
 export namespace snet::comm_stack::layers {
@@ -37,6 +38,6 @@ snet::comm_stack::layers::Layer3::Layer3(
     Layer4 *l4) :
     LayerN(self_node_info, sock),
     m_l4(*l4) {
-    m_logger = spdlog::logger("Layer3");
-    m_logger.info("Layer3 initialized");
+    m_logger = utils::create_logger("Layer3");
+    m_logger->info("Layer3 initialized");
 }

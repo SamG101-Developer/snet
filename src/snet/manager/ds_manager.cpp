@@ -152,7 +152,7 @@ auto snet::managers::ds::validate_directory_profile(
     const auto identifier = utils::from_hex(priv_json.at("identifier").get<std::string>());
     const auto port = priv_json.at("port").get<std::uint16_t>();
     const auto ssk_serialized = utils::from_hex<true>(priv_json.at("secret_key").get<std::string>());
-    auto ssk = crypt::asymmetric::load_sig_private_key(ssk_serialized);
+    auto ssk = crypt::asymmetric::load_private_key(ssk_serialized);
 
     // Return the profile information.
     return {std::make_tuple(hashed_username, hashed_password, port, identifier, ssk)};

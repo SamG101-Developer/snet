@@ -9,6 +9,7 @@ import snet.credentials.key_store_data;
 import snet.crypt.symmetric;
 import snet.net.socket;
 import snet.utils.encoding;
+import snet.utils.logging;
 
 
 export namespace snet::comm_stack::layers {
@@ -16,7 +17,7 @@ export namespace snet::comm_stack::layers {
     protected:
         credentials::KeyStoreData *m_self_node_info = nullptr;
         net::Socket *m_sock;
-        spdlog::logger m_logger;
+        std::shared_ptr<spdlog::logger> m_logger;
 
     public:
         LayerN(
@@ -52,7 +53,7 @@ snet::comm_stack::layers::LayerN::LayerN(
     net::Socket *sock) :
     m_self_node_info(self_node_info),
     m_sock(sock),
-    m_logger(spdlog::logger("LayerN")) {
+    m_logger(spdlog::default_logger()) {
 }
 
 
@@ -75,7 +76,7 @@ auto snet::comm_stack::layers::LayerN::send(
     auto req_serialized = utils::encode_string(serex::save(*req));
 
     // Debug the send action and send the data via the socket.
-    m_logger.debug(std::format(
+    m_logger->debug(std::format(
         "LayerN sending request of size {} to {}@{}:{}",
         req_serialized.size(), utils::to_hex(conn->peer_id), conn->peer_ip, conn->peer_port));
     m_sock->send(req_serialized, conn->peer_ip, conn->peer_port);
@@ -103,7 +104,7 @@ auto snet::comm_stack::layers::LayerN::send_secure(
     auto enc_req_serialized = utils::encode_string(serex::save(enc_req));
 
     // Debug the send action and send the data via the socket.
-    m_logger.debug(std::format(
+    m_logger->debug(std::format(
         "LayerN sending SECURE request of size {} to {}@{}:{}",
         enc_req.ciphertext.size(), utils::to_hex(conn->peer_id), conn->peer_ip, conn->peer_port));
     m_sock->send(enc_req_serialized, conn->peer_ip, conn->peer_port);

@@ -39,7 +39,7 @@ auto test_signature_functions() -> void {
     const auto sig_a = snet::crypt::asymmetric::sign(sSKa, msg_a, aad_a.get());
 
     // Node B verifies the signature from Node A.
-    const auto sPKa_for_b = snet::crypt::asymmetric::load_sig_public_key(PKI_sPKa);
+    const auto sPKa_for_b = snet::crypt::asymmetric::load_public_key(PKI_sPKa);
     const auto exp_aad_b = snet::crypt::asymmetric::create_aad(session_token, id_b);
     const auto ver_a = snet::crypt::asymmetric::verify(
         sPKa_for_b, sig_a, msg_a, aad_a.get(), {}, exp_aad_b.get(), 10000);
@@ -55,7 +55,7 @@ auto test_kem_functions() -> void {
     const auto PKI_ePKb = snet::crypt::asymmetric::serialize_public(eSKb);
 
     // Node B's ephemeral public key from Node A's perspective.
-    const auto ePKb_for_a = snet::crypt::asymmetric::load_kem_public_key(PKI_ePKb);
+    const auto ePKb_for_a = snet::crypt::asymmetric::load_public_key(PKI_ePKb);
 
     // Node A encapsulates a shared secret and ciphertext using Node B's public key.
     const auto [ct_a, ss_a] = snet::crypt::asymmetric::encaps(ePKb_for_a);
@@ -95,7 +95,7 @@ auto test_certificate() -> void {
     const auto PKI_pk = snet::crypt::asymmetric::serialize_public(sk);
 
     // Verify the certificate
-    const auto pk = snet::crypt::asymmetric::load_sig_public_key(PKI_pk);
+    const auto pk = snet::crypt::asymmetric::load_public_key(PKI_pk);
     const auto is_valid = snet::crypt::certificate::verify_certificate(cert, pk);
     snet::utils::assert(is_valid);
     spdlog::info("Certificate verification successful");
@@ -145,7 +145,14 @@ auto main(const int argc, char **argv) -> int {
     // test_sockets();
     // test_signature_functions();
 
-    const auto ret = snet::cli::create_cli(argc, argv);
+    auto ret = 0;
+    ret = snet::cli::create_cli(argc, argv);
+
+    // constexpr auto i = 23;
+    // const auto username = std::string("node.") + std::to_string(i);
+    // const auto password = std::string("pass.") + std::to_string(i);
+    // snet::managers::profile::create_profile(username, password);
+    // snet::managers::cmd::handle_join(username, password);
 
     openssl::CRYPTO_secure_malloc_done();
 

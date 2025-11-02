@@ -7,6 +7,7 @@ import snet.comm_stack.comm_stack;
 import snet.comm_stack.layers.layer_d;
 import snet.crypt.bytes;
 import snet.manager.key_manager;
+import snet.utils.encoding;
 
 
 export namespace snet::nodes {
@@ -36,5 +37,5 @@ snet::nodes::DirectoryNode::DirectoryNode(
     // Create the communication stack and bootstrapping layer.
     m_comm_stack.start(&m_node_info);
     m_comm_stack.setup_boostrap(std::make_unique<comm_stack::layers::LayerD>(
-        &m_node_info, m_comm_stack.get_socket(), true, ssk, m_comm_stack.get_layer_4()));
+        &m_node_info, m_comm_stack.get_socket(), utils::decode_bytes(m_name), ssk, m_comm_stack.get_layer_4()));
 }

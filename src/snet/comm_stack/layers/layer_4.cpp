@@ -11,6 +11,7 @@ import spdlog;
 import std;
 
 import snet.comm_stack.layers.layer_n;
+import snet.credentials.key_store_data;
 import snet.crypt.asymmetric;
 import snet.crypt.bytes;
 import snet.crypt.certificate;
@@ -19,7 +20,9 @@ import snet.crypt.random;
 import snet.crypt.timestamp;
 import snet.comm_stack.connection;
 import snet.comm_stack.request;
+import snet.net.socket;
 import snet.utils.encoding;
+import snet.utils.logging;
 
 
 export namespace snet::comm_stack::layers {
@@ -32,7 +35,9 @@ export namespace snet::comm_stack::layers {
         std::map<crypt::bytes::RawBytes, openssl::EVP_PKEY*> m_cached_pkeys = {};
 
     public:
-        using LayerN::LayerN;
+        Layer4(
+            credentials::KeyStoreData *self_node_info,
+            net::Socket *sock);
 
         auto connect(
             std::string const &peer_ip,
@@ -41,14 +46,13 @@ export namespace snet::comm_stack::layers {
             crypt::bytes::RawBytes const &pre_conn_tok = {})
             -> Connection*;
 
-    private:
-        template <typename T> requires std::derived_from<T, RawRequest>
         auto handle_command(
             std::string const &peer_ip,
             std::uint16_t peer_port,
-            std::unique_ptr<T> &&req)
+            std::unique_ptr<RawRequest> &&req)
             -> void;
 
+    private:
         auto handle_connection_request(
             std::string const &peer_ip,
             std::uint16_t peer_port,
@@ -73,6 +77,16 @@ export namespace snet::comm_stack::layers {
             std::unique_ptr<Layer4_ConnectionClose> &&req)
             -> void;
     };
+}
+
+
+snet::comm_stack::layers::Layer4::Layer4(
+    credentials::KeyStoreData *self_node_info,
+    net::Socket *sock) :
+    LayerN(self_node_info, sock),
+    m_static_skey(crypt::asymmetric::load_private_key(self_node_info->secret_key)) {
+    m_logger = utils::create_logger("Layer4");
+    m_logger->info("Layer4 initialized");
 }
 
 
@@ -111,14 +125,13 @@ auto snet::comm_stack::layers::Layer4::connect(
 }
 
 
-template <typename T> requires std::derived_from<T, snet::comm_stack::RawRequest>
 auto snet::comm_stack::layers::Layer4::handle_command(
     std::string const &peer_ip,
     std::uint16_t peer_port,
-    std::unique_ptr<T> &&req)
+    std::unique_ptr<RawRequest> &&req)
     -> void {
     // Get the token and state of the connection.
-    const auto tok = req->conn_tok;
+    auto tok = req->conn_tok;
     const auto state = ConnectionCache::connections.contains(tok)
                            ? ConnectionCache::connections[tok]->state
                            : ConnectionState::NOT_CONNECTED;
@@ -127,12 +140,12 @@ auto snet::comm_stack::layers::Layer4::handle_command(
     MAP_TO_HANDLER(4, Layer4_ConnectionRequest, state == ConnectionState::NOT_CONNECTED, handle_connection_request);
     MAP_TO_HANDLER(4, Layer4_ConnectionAccept, state == ConnectionState::PENDING_CONNECTION, handle_connection_accept);
     MAP_TO_HANDLER(4, Layer4_ConnectionAck, state == ConnectionState::PENDING_CONNECTION, handle_connection_ack);
-    MAP_TO_HANDLER(4, RawRequest, true, handle_connection_close);
+    MAP_TO_HANDLER(4, Layer4_ConnectionClose, true, handle_connection_close);
 
     // If no handler matched, log a warning.
-    m_logger.warn(
+    m_logger->warn(std::format(
         "Layer4 received invalid request type or state from {}@{}:{}",
-        peer_ip, peer_port, utils::to_hex(tok));
+        peer_ip, peer_port, utils::to_hex(tok)));
 }
 
 
@@ -144,12 +157,12 @@ auto snet::comm_stack::layers::Layer4::handle_connection_request(
     // Load information off of the request.
     const auto peer_cert = crypt::certificate::load_certificate(req->req_cert);
     const auto peer_spk = crypt::certificate::extract_pkey_from_cert(peer_cert);
-    const auto peer_epk = crypt::asymmetric::load_kem_public_key(req->req_epk);
+    const auto peer_epk = crypt::asymmetric::load_public_key(req->req_epk);
     const auto peer_id = crypt::certificate::extract_id_from_cert(peer_cert);
 
     // Create the connection object to track the conversation.
     auto conn = std::make_unique<Connection>(
-        peer_ip, peer_port, std::move(peer_id), req->conn_tok, ConnectionState::PENDING_CONNECTION, peer_epk);
+        peer_ip, peer_port, peer_id, req->conn_tok, ConnectionState::PENDING_CONNECTION, peer_epk);
 
     // Create the local and remote session identifiers.
     const auto local_session_id = crypt::asymmetric::create_aad(conn->conn_tok, m_self_id);;
@@ -241,7 +254,7 @@ auto snet::comm_stack::layers::Layer4::handle_connection_accept(
     // Clean-up keys and mark the connection as accepted.
     conn->clean_ephemeral_keys();
     conn->state = ConnectionState::CONNECTION_OPEN;
-    m_logger.info(std::format("Layer4 connection established with {}", utils::to_hex(conn->peer_id)));
+    m_logger->info(std::format("Layer4 connection established with {}", utils::to_hex(conn->peer_id)));
 }
 
 
@@ -269,7 +282,7 @@ auto snet::comm_stack::layers::Layer4::handle_connection_ack(
     // Clean-up keys and mark the connection as accepted.
     conn->clean_ephemeral_keys();
     conn->state = ConnectionState::CONNECTION_OPEN;
-    m_logger.info(std::format("Layer4 connection established with {}", utils::to_hex(conn->peer_id)));
+    m_logger->info(std::format("Layer4 connection established with {}", utils::to_hex(conn->peer_id)));
 }
 
 
@@ -283,6 +296,6 @@ auto snet::comm_stack::layers::Layer4::handle_connection_close(
 
     // Mark the connection as closed, and delete the connection.
     conn->state = ConnectionState::CONNECTION_CLOSED;
-    m_logger.info(std::format("Layer4 connection closed with {} because {}", utils::to_hex(conn->peer_id), req->reason));
+    m_logger->info(std::format("Layer4 connection closed with {} because {}", utils::to_hex(conn->peer_id), req->reason));
     ConnectionCache::connections.erase(req->conn_tok);
 }

@@ -233,7 +233,6 @@ auto main(int argc, char *argv[]) -> int {
     // create_nodes();
 
     qputenv("QT_QPA_PLATFORM", QByteArray("xcb"));
-
     QApplication app(argc, argv);
     const auto gui = new TestGui();
     return QApplication::exec();
