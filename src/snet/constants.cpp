@@ -50,6 +50,9 @@ auto snet::constants::get_cache_dir() -> std::filesystem::path {
     if (not std::filesystem::exists(path / "profiles" / "profiles.json")) {
         utils::write_file(path / "profiles" / "profiles.json", "{}");
     }
+    if (not std::filesystem::exists(path / "profiles" / "directory-service.json")) {
+        utils::write_file(path / "profiles" / "directory-service.json", "{}");
+    }
     std::filesystem::create_directories(path / "profiles" / "profile-cache");
     std::filesystem::create_directories(path / "profiles" / "directory-service-servers");
     std::filesystem::create_directories(path / "profiles" / "directory-service-node-cache");

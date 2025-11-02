@@ -34,7 +34,8 @@ auto snet::managers::keys::get_info(
     crypt::bytes::SecureBytes const &hashed_password)
     -> std::unique_ptr<credentials::KeyStoreData> {
     const auto serialized = credentials::keyring::get_password(hashed_username, hashed_password);
-    return serex::load<credentials::KeyStoreData*>(serialized);
+    auto on_stack = serex::load<credentials::KeyStoreData>(serialized);
+    return std::make_unique<credentials::KeyStoreData>(std::move(on_stack));
 }
 
 

@@ -25,9 +25,9 @@ export namespace snet::comm_stack {
             return "snet.comm_stack.RawRequest";
         }
 
-        template <typename A>
-        auto serialize(A &ar) -> void {
-            ar & conn_tok & secure;
+        auto serialize(serex::Archive &ar) -> void override {
+            serex::SerializablePolymorphicBase::serialize(ar);
+            serex::push_into_archive(ar, conn_tok, secure);
         }
     };
 
@@ -46,9 +46,9 @@ export namespace snet::comm_stack {
             return "snet.comm_stack.EncryptedRequest";
         }
 
-        template <typename A>
-        auto serialize(A &ar) -> void {
-            ar & serex::base_object<RawRequest>(this) & ciphertext;
+        auto serialize(serex::Archive &ar) -> void override {
+            RawRequest::serialize(ar);
+            serex::push_into_archive(ar, ciphertext);
         }
     };
 
@@ -69,9 +69,9 @@ export namespace snet::comm_stack {
             return "snet.comm_stack.layers.LayerD_BootstrapRequest";
         }
 
-        template <typename A>
-        auto serialize(A &ar) -> void {
-            ar & serex::base_object<RawRequest>(this) & node_cert & node_id;
+        auto serialize(serex::Archive &ar) -> void override {
+            RawRequest::serialize(ar);
+            serex::push_into_archive(ar, node_cert, node_id);
         }
     };
 
@@ -92,9 +92,9 @@ export namespace snet::comm_stack {
             return "snet.comm_stack.layers.LayerD_BootstrapResponse";
         }
 
-        template <typename A>
-        auto serialize(A &ar) -> void {
-            ar & serex::base_object<RawRequest>(this) & node_info & sig;
+        auto serialize(serex::Archive &ar) -> void override {
+            RawRequest::serialize(ar);
+            serex::push_into_archive(ar, node_info, sig);
         }
     };
 
@@ -118,9 +118,9 @@ export namespace snet::comm_stack {
             return "snet.comm_stack.layers.Layer4_ConnectionRequest";
         }
 
-        template <typename A>
-        auto serialize(A &ar) -> void {
-            ar & serex::base_object<RawRequest>(this) & req_cert & req_epk & sig;
+        auto serialize(serex::Archive &ar) -> void override {
+            RawRequest::serialize(ar);
+            serex::push_into_archive(ar, req_cert, req_epk, sig);
         }
     };
 
@@ -144,9 +144,9 @@ export namespace snet::comm_stack {
             return "snet.comm_stack.layers.Layer4_ConnectionAccept";
         }
 
-        template <typename A>
-        auto serialize(A &ar) -> void {
-            ar & serex::base_object<RawRequest>(this) & acceptor_cert & kem_wrapped_p2p_primary_key & sig;
+        auto serialize(serex::Archive &ar) -> void override {
+            RawRequest::serialize(ar);
+            serex::push_into_archive(ar, acceptor_cert, kem_wrapped_p2p_primary_key, sig);
         }
     };
 
@@ -164,9 +164,9 @@ export namespace snet::comm_stack {
             return "snet.comm_stack.layers.Layer4_ConnectionAck";
         }
 
-        template <typename A>
-        auto serialize(A &ar) -> void {
-            ar & serex::base_object<RawRequest>(this) & sig;
+        auto serialize(serex::Archive &ar) -> void override {
+            RawRequest::serialize(ar);
+            serex::push_into_archive(ar, sig);
         }
     };
 
@@ -184,9 +184,9 @@ export namespace snet::comm_stack {
             return "snet.comm_stack.layers.Layer4_ConnectionClose";
         }
 
-        template <typename A>
-        auto serialize(A &ar) -> void {
-            ar & serex::base_object<RawRequest>(this) & reason;
+        auto serialize(serex::Archive &ar) -> void override {
+            RawRequest::serialize(ar);
+            serex::push_into_archive(ar, reason);
         }
     };
 
@@ -216,9 +216,9 @@ export namespace snet::comm_stack {
             return "snet.comm_stack.layers.Layer2_RouteExtensionRequest";
         }
 
-        template <typename A>
-        auto serialize(A &ar) -> void {
-            ar & serex::base_object<RawRequest>(this) & route_tok & route_owner_epk & next_node_ip & next_node_port & next_node_id;
+        auto serialize(serex::Archive &ar) -> void override {
+            RawRequest::serialize(ar);
+            serex::push_into_archive(ar, route_tok, route_owner_epk, next_node_ip, next_node_port, next_node_id);
         }
     };
 
@@ -239,9 +239,9 @@ export namespace snet::comm_stack {
             return "snet.comm_stack.layers.Layer2_TunnelJoinRequest";
         }
 
-        template <typename A>
-        auto serialize(A &ar) -> void {
-            ar & serex::base_object<RawRequest>(this) & route_token & route_owner_epk;
+        auto serialize(serex::Archive &ar) -> void override {
+            RawRequest::serialize(ar);
+            serex::push_into_archive(ar, route_token, route_owner_epk);
         }
     };
 
@@ -268,9 +268,9 @@ export namespace snet::comm_stack {
             return "snet.comm_stack.layers.Layer2_TunnelJoinAccept";
         }
 
-        template <typename A>
-        auto serialize(A &ar) -> void {
-            ar & serex::base_object<RawRequest>(this) & route_token & acceptor_cert & kem_wrapped_p2p_primary_key & sig;
+        auto serialize(serex::Archive &ar) -> void override {
+            RawRequest::serialize(ar);
+            serex::push_into_archive(ar, route_token, acceptor_cert, kem_wrapped_p2p_primary_key, sig);
         }
     };
 
@@ -291,9 +291,9 @@ export namespace snet::comm_stack {
             return "snet.comm_stack.layers.Layer2_TunnelJoinReject";
         }
 
-        template <typename A>
-        auto serialize(A &ar) -> void {
-            ar & serex::base_object<RawRequest>(this) & route_tok & reason;
+        auto serialize(serex::Archive &ar) -> void override {
+            RawRequest::serialize(ar);
+            serex::push_into_archive(ar, route_tok, reason);
         }
     };
 
@@ -311,9 +311,9 @@ export namespace snet::comm_stack {
             return "snet.comm_stack.layers.Layer2_TunnelDataForward";
         }
 
-        template <typename A>
-        auto serialize(A &ar) -> void {
-            ar & serex::base_object<RawRequest>(this) & data;
+        auto serialize(serex::Archive &ar) -> void override {
+            RawRequest::serialize(ar);
+            serex::push_into_archive(ar, data);
         }
     };
 
@@ -331,9 +331,9 @@ export namespace snet::comm_stack {
             return "snet.comm_stack.layers.Layer2_TunnelDataBackward";
         }
 
-        template <typename A>
-        auto serialize(A &ar) -> void {
-            ar & serex::base_object<RawRequest>(this) & data;
+        auto serialize(serex::Archive &ar) -> void override {
+            RawRequest::serialize(ar);
+            serex::push_into_archive(ar, data);
         }
     };
 }

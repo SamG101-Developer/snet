@@ -1,6 +1,7 @@
 export module snet.crypt.symmetric;
-import std;
 import openssl;
+import serex.serialize;
+import std;
 
 import snet.crypt.bytes;
 
@@ -15,8 +16,9 @@ export namespace snet::crypt::symmetric {
         bytes::RawBytes iv;
         bytes::RawBytes tag;
 
-        template <typename Ar>
-        auto serialize(Ar &ar) -> void;
+        auto serialize(serex::Archive &ar) -> void {
+            serex::push_into_archive(ar, ct, iv, tag);
+        }
     };
 
     auto generate_key() -> bytes::SecureBytes;
@@ -32,12 +34,6 @@ export namespace snet::crypt::symmetric {
         const bytes::RawBytes &iv,
         const bytes::RawBytes &tag)
         -> bytes::SecureBytes;
-}
-
-
-template <typename Ar>
-auto snet::crypt::symmetric::CipherText::serialize(Ar &ar) -> void {
-    ar & ct & iv & tag;
 }
 
 

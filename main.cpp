@@ -14,6 +14,7 @@ import snet.net.socket;
 import snet.utils.assert;
 import snet.manager.cmd_handler;
 import snet.manager.profile_manager;
+import snet.manager.ds_manager;
 
 import snet.boot;
 import snet.cli;
@@ -151,10 +152,12 @@ auto main(const int argc, char **argv) -> int {
     // constexpr auto i = 0;
     // const auto username = std::string("node.") + std::to_string(i);
     // const auto password = std::string("pass.") + std::to_string(i);
+    // snet::managers::profile::delete_profile(username, password);
     // snet::managers::profile::create_profile(username, password);
     // snet::managers::cmd::handle_join(username, password);
 
     // const auto name = std::string("snetwork.directory-service.") + std::to_string(0);
+    // snet::managers::ds::create_directory_profile(name);
     // snet::managers::cmd::handle_directory(name);
 
     openssl::CRYPTO_secure_malloc_done();

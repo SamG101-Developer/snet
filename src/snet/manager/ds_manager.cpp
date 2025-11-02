@@ -14,6 +14,7 @@ export module snet.manager.ds_manager;
 import std;
 import openssl;
 import json;
+import spdlog;
 
 import snet.constants;
 import snet.crypt.asymmetric;
@@ -140,9 +141,11 @@ auto snet::managers::ds::validate_directory_profile(
 
     // Check if the username exists.
     if (not std::filesystem::exists(constants::DIRECTORY_SERVICE_PRIVATE_DIR / (username + ".json"))) {
+        spdlog::error(std::format("Directory profile '{}' does not exist", username));
         return std::nullopt;
     }
     if (not std::filesystem::exists(constants::DIRECTORY_SERVICE_NODE_CACHE_DIR / (username + ".json"))) {
+        spdlog::warn(std::format("Directory profile '{}' cache file missing; recreating.", username));
         utils::write_file(constants::DIRECTORY_SERVICE_NODE_CACHE_DIR / (username + ".json"), nlohmann::json::object().dump(4));
     }
 
