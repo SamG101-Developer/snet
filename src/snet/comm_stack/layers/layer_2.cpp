@@ -111,17 +111,15 @@ export namespace snet::comm_stack::layers {
             std::unique_ptr<Layer2_TunnelDataBackward> &&req)
             -> void;
 
-        template <typename T>
         auto send_tunnel_forward(
-            std::unique_ptr<T> &&req,
+            std::unique_ptr<RawRequest> &&req,
             std::size_t hops = HOP_COUNT + 1,
-            bool for_route_setup = false)
+            bool for_route_setup = false) const
             -> void;
 
-        template <typename T>
         auto send_tunnel_backward(
             Connection *prev_conn,
-            std::unique_ptr<T> &&req)
+            std::unique_ptr<RawRequest> &&req) const
             -> void;
     };
 }
@@ -447,11 +445,10 @@ auto snet::comm_stack::layers::Layer2::handle_tunnel_data_backward(
 }
 
 
-template <typename T>
 auto snet::comm_stack::layers::Layer2::send_tunnel_forward(
-    std::unique_ptr<T> &&req,
+    std::unique_ptr<RawRequest> &&req,
     std::size_t hops,
-    const bool for_route_setup)
+    const bool for_route_setup) const
     -> void {
     // Wait for the route to be created to fix timing issues (only called from route owner).
     while (m_route == nullptr or (not for_route_setup and not m_route->ready)) {
@@ -484,15 +481,14 @@ auto snet::comm_stack::layers::Layer2::send_tunnel_forward(
 }
 
 
-template <typename T>
 auto snet::comm_stack::layers::Layer2::send_tunnel_backward(
     Connection *prev_conn,
-    std::unique_ptr<T> &&req)
+    std::unique_ptr<RawRequest> &&req) const
     -> void {
     // Encrypt and send the request to the previous node in the route.
     attach_metadata(prev_conn, req.get());
-    auto ct = crypt::symmetric::encrypt(m_participating_route_keys[prev_conn->conn_tok], utils::encode_string<true>(serex::save(*req)));
-    auto enc_req = std::make_unique<EncryptedRequest>(utils::encode_string(serex::save(ct)));
+    auto ct = crypt::symmetric::encrypt(m_participating_route_keys.at(prev_conn->conn_tok), utils::encode_string<true>(serex::save(*req)));
+    const auto enc_req = std::make_unique<EncryptedRequest>(utils::encode_string(serex::save(ct)));
     enc_req->conn_tok = prev_conn->conn_tok;
     auto wrapped_req = std::make_unique<Layer2_TunnelDataBackward>(utils::encode_string(serex::save(*enc_req)));
     send_secure(prev_conn, std::move(wrapped_req));

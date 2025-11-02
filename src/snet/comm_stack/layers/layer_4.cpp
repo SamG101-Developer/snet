@@ -97,30 +97,36 @@ auto snet::comm_stack::layers::Layer4::connect(
     crypt::bytes::RawBytes const &pre_conn_tok)
     -> Connection* {
     // Generate a unique connection token unless provided.
-    const auto conn_tok = pre_conn_tok.empty() ? crypt::random::random_bytes(32) + crypt::timestamp::timestamp_bytes() : pre_conn_tok;
+    auto conn_tok = pre_conn_tok.empty() ? crypt::random::random_bytes(32) + crypt::timestamp::timestamp_bytes() : pre_conn_tok;
     const auto remote_session_id = conn_tok + peer_id;
 
     // Generate an ephemeral key pair for this connection (exclusively).
     const auto self_esk = crypt::asymmetric::generate_sig_keypair();
-    const auto self_epk = crypt::asymmetric::serialize_public(m_static_skey);
+    const auto self_epk = crypt::asymmetric::serialize_public(self_esk);
     const auto aad = crypt::asymmetric::create_aad(conn_tok, peer_id);
     const auto self_epk_sig = crypt::asymmetric::sign(m_static_skey, self_epk, aad.get());
 
     // Create the connection object to track the conversation.
     auto conn = std::make_unique<Connection>(
         peer_ip, peer_port, peer_id, conn_tok, ConnectionState::PENDING_CONNECTION);
-    auto conn_ptr = conn.get();
+    const auto conn_ptr = conn.get();
     ConnectionCache::connections[conn_tok] = std::move(conn);
 
     // Create the request to request a connection.
     auto req = std::make_unique<Layer4_ConnectionRequest>(m_self_cert, self_epk, self_epk_sig);
     send(ConnectionCache::connections[conn_tok].get(), std::move(req));
-    return ConnectionCache::connections[conn_tok].get();
+    m_logger->info(std::format(
+        "Layer4 sent connection request to {}@{}:{}",
+        peer_ip, peer_port, utils::to_hex(conn_tok)));
 
     // Wait for the connection to be accepted or rejected.
-    while (conn_ptr->is_accepted() or conn_ptr->is_rejected()) {
+    while (not(conn_ptr->is_accepted() or conn_ptr->is_rejected())) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
+    m_logger->info(std::format(
+        "Layer4 connection to {}@{}:{} {}",
+        peer_ip, peer_port, utils::to_hex(conn_tok),
+        conn_ptr->is_accepted() ? "accepted" : "rejected"));
     return conn_ptr->is_accepted() ? conn_ptr : nullptr;
 }
 

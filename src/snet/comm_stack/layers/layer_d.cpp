@@ -105,12 +105,12 @@ auto snet::comm_stack::layers::LayerD::request_bootstrap()
         exclude.push_back(d_name);
 
         // Create an encrypted connection to the directory service.
-        m_logger->info(std::format("LayerD bootstrapping from directory service {}@{}:{}", d_name, d_address, d_port));
+        m_logger->info(std::format("Bootstrapping from directory service {}@{}:{}", d_name, d_address, d_port));
         const auto conn = m_l4->connect(d_address, d_port, d_id);
 
         // Check if the connection couldn't be established.
         if (conn == nullptr) {
-            m_logger->warn(std::format("LayerD failed to connect to directory service {}@{}:{}", d_name, d_address, d_port));
+            m_logger->warn(std::format("Failed to connect to directory service {}@{}:{}", d_name, d_address, d_port));
             continue;
         }
 

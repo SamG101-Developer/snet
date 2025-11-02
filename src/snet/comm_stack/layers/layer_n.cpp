@@ -33,16 +33,14 @@ export namespace snet::comm_stack::layers {
             T *req) const
             -> void;
 
-        template <typename T>
         auto send(
             Connection *conn,
-            std::unique_ptr<T> &&req)
+            std::unique_ptr<RawRequest> &&req) const
             -> void;
 
-        template <typename T>
         auto send_secure(
             Connection *conn,
-            std::unique_ptr<T> &&req)
+            std::unique_ptr<RawRequest> &&req) const
             -> void;
     };
 }
@@ -66,10 +64,9 @@ auto snet::comm_stack::layers::LayerN::attach_metadata(
 }
 
 
-template <typename T>
 auto snet::comm_stack::layers::LayerN::send(
     Connection *conn,
-    std::unique_ptr<T> &&req)
+    std::unique_ptr<RawRequest> &&req) const
     -> void {
     // Attach connection metadata to the request and serialize.
     attach_metadata(conn, req.get());
@@ -83,10 +80,9 @@ auto snet::comm_stack::layers::LayerN::send(
 }
 
 
-template <typename T>
 auto snet::comm_stack::layers::LayerN::send_secure(
     Connection *conn,
-    std::unique_ptr<T> &&req)
+    std::unique_ptr<RawRequest> &&req) const
     -> void {
     // Attach connection metadata to the request and serialize.
     attach_metadata(conn, req.get());
