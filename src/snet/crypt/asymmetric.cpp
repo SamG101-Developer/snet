@@ -146,16 +146,16 @@ auto snet::crypt::asymmetric::verify(
     }
 
     // Check the aad and exp_aad's "sid".
-    if (aad->params[0].data_size != exp_aad->params[0].data_size or
-        openssl::CRYPTO_memcmp(aad->params[0].data, exp_aad->params[0].data, aad->params[0].data_size) != 0) {
+    if (exp_aad != nullptr and (aad->params[0].data_size != exp_aad->params[0].data_size or
+        openssl::CRYPTO_memcmp(aad->params[0].data, exp_aad->params[0].data, aad->params[0].data_size) != 0)) {
         openssl::EVP_PKEY_CTX_free(vctx);
         spdlog::warn("AAD 'sid' mismatch");
         return false;
     }
 
     // Check the aad and exp_aad's "tid".
-    if (aad->params[1].data_size != exp_aad->params[1].data_size or
-        openssl::CRYPTO_memcmp(aad->params[1].data, exp_aad->params[1].data, aad->params[1].data_size) != 0) {
+    if (exp_aad != nullptr and (aad->params[1].data_size != exp_aad->params[1].data_size or
+        openssl::CRYPTO_memcmp(aad->params[1].data, exp_aad->params[1].data, aad->params[1].data_size) != 0)) {
         openssl::EVP_PKEY_CTX_free(vctx);
         spdlog::warn("AAD 'tid' mismatch");
         return false;

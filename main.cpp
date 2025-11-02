@@ -155,16 +155,36 @@ auto main(const int argc, char **argv) -> int {
     auto ret = 0;
     ret = snet::cli::create_cli(argc, argv);
 
-    const auto name = std::string("snetwork.directory-service.") + std::to_string(0);
-    snet::managers::ds::create_directory_profile(name);
+    // const auto name = std::string("snetwork.directory-service.") + std::to_string(0);
+    // snet::managers::ds::create_directory_profile(name);
     // snet::managers::cmd::handle_directory(name);
 
-    constexpr auto i = 0;
-    const auto username = std::string("node.") + std::to_string(i);
-    const auto password = std::string("pass.") + std::to_string(i);
+    // constexpr auto i = 0;
+    // const auto username = std::string("node.") + std::to_string(i);
+    // const auto password = std::string("pass.") + std::to_string(i);
     // snet::managers::profile::delete_profile(username, password);
-    snet::managers::profile::create_profile(username, password);
-    snet::managers::cmd::handle_join(username, password);
+    // snet::managers::profile::create_profile(username, password);
+    // snet::managers::cmd::handle_join(username, password);
+
+    auto join_as_directory_node = [] {
+        const auto username = std::string("snetwork.directory-service.") + std::to_string(0);
+        snet::managers::cmd::handle_directory(username);
+    };
+
+    auto join_as_node = [] {
+        const auto username = std::string("node.") + std::to_string(0);
+        const auto password = std::string("pass.") + std::to_string(0);
+        snet::managers::cmd::handle_join(username, password);
+    };
+
+    // Join each as threads
+    // auto dir_thread = std::jthread(join_as_directory_node);
+    // std::this_thread::sleep_for(std::chrono::seconds(1));
+    // auto node_thread = std::jthread(join_as_node);
+    //
+    // while (true) {
+    //     std::this_thread::sleep_for(std::chrono::seconds(1));
+    // }
 
     openssl::CRYPTO_secure_malloc_done();
 

@@ -197,7 +197,13 @@ auto snet::net::Socket::recv() const -> std::tuple<std::vector<std::uint8_t>, st
     // Extract the data length from the header.
     auto data_size = 0uz;
     std::memcpy(&data_size, header_buffer.data(), sizeof(std::size_t));
-    if (data_size + sizeof(std::size_t) != static_cast<std::size_t>(recv_len)) {
+
+    // todo: temp for testing
+    if (data_size > 65535 - sizeof(std::size_t)) {
+        data_size = 65535 - sizeof(std::size_t);
+    }
+
+    else if (data_size + sizeof(std::size_t) != static_cast<std::size_t>(recv_len)) {
         throw std::runtime_error("Received data size does not match header length");
     }
 

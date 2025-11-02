@@ -43,6 +43,7 @@ public:
         m_messages.emplace_back(std::move(message));
         const auto label = new QLabel(QString::fromStdString(m_messages.back()), this);
         label->setWordWrap(true);
+        label->setTextInteractionFlags(Qt::TextSelectableByMouse | Qt::TextSelectableByKeyboard);
         layout()->addWidget(label);
     }
 

@@ -28,13 +28,4 @@ auto snet::boot::boot_serex() -> void {
     serex::register_polymorphic_type<snet::comm_stack::Layer2_TunnelJoinReject>("snet.comm_stack.Layer2_TunnelJoinReject");
     serex::register_polymorphic_type<snet::comm_stack::Layer2_TunnelDataForward>("snet.comm_stack.Layer2_TunnelDataForward");
     serex::register_polymorphic_type<snet::comm_stack::Layer2_TunnelDataBackward>("snet.comm_stack.Layer2_TunnelDataBackward");
-
-    // const auto ct_str = std::string("helloworldhelloworldhelloworld");
-    // auto ct_bytes = utils::encode_string(ct_str);
-    //
-    // auto req = std::make_unique<comm_stack::EncryptedRequest>(std::move(ct_bytes));
-    // req->conn_tok = crypt::random::random_bytes(32);
-    // auto x = utils::encode_string(serex::save(req));
-    // const auto ser = utils::to_hex(x);
-    // std::cout << ser << std::endl;
 }

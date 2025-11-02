@@ -70,7 +70,7 @@ auto snet::comm_stack::layers::LayerN::send(
     -> void {
     // Attach connection metadata to the request and serialize.
     attach_metadata(conn, req.get());
-    auto req_serialized = utils::encode_string(serex::save(*req));
+    auto req_serialized = utils::encode_string(serex::save(req));
 
     // Debug the send action and send the data via the socket.
     m_logger->debug(std::format(

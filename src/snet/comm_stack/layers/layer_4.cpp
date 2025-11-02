@@ -115,6 +115,10 @@ auto snet::comm_stack::layers::Layer4::connect(
 
     // Create the request to request a connection.
     auto req = std::make_unique<Layer4_ConnectionRequest>(m_self_cert, self_epk, self_epk_sig);
+
+    auto serialize_temp = utils::encode_string(serex::save(*req));
+    m_logger->info(utils::to_hex(serialize_temp));
+
     send(ConnectionCache::connections[conn_tok].get(), std::move(req));
     m_logger->info(std::format(
         "Layer4 sent connection request to {}@{}:{}",
@@ -137,6 +141,10 @@ auto snet::comm_stack::layers::Layer4::handle_command(
     std::uint16_t peer_port,
     std::unique_ptr<RawRequest> &&req)
     -> void {
+    m_logger->info(std::format(
+        "Layer4 received request of type {} from {}@{}:{}",
+        req->serex_type(), peer_ip, peer_port, utils::to_hex(req->conn_tok)));
+
     // Get the token and state of the connection.
     auto tok = req->conn_tok;
     const auto state = ConnectionCache::connections.contains(tok)
@@ -161,6 +169,7 @@ auto snet::comm_stack::layers::Layer4::handle_connection_request(
     std::uint16_t peer_port,
     std::unique_ptr<Layer4_ConnectionRequest> &&req)
     -> void {
+
     // Load information off of the request.
     const auto peer_cert = crypt::certificate::load_certificate(req->req_cert);
     const auto peer_spk = crypt::certificate::extract_pkey_from_cert(peer_cert);
@@ -204,6 +213,7 @@ auto snet::comm_stack::layers::Layer4::handle_connection_request(
     // Create a master key and kem-wrapped master key,
     const auto kem = crypt::asymmetric::encaps(peer_epk);
     const auto kem_sig = crypt::asymmetric::sign(m_static_skey, kem.ct, remote_session_id.get());
+    conn->e2e_key = kem.ss;
 
     // Create a new Layer4_ConnectionAccept response and send it.
     auto response = std::make_unique<Layer4_ConnectionAccept>(m_self_cert, kem.ct, kem_sig);
@@ -279,7 +289,7 @@ auto snet::comm_stack::layers::Layer4::handle_connection_ack(
     const auto peer_spk = m_cached_pkeys[conn->peer_id];
 
     // Verify the signature on the hash of the shared secret.
-    const auto hash_e2e_primary_key = crypt::hash::sha3_256(*conn->e2e_key);
+    const auto hash_e2e_primary_key = crypt::hash::sha3_256(*conn->e2e_key);  // todo: this "*" fails.
     if (not crypt::asymmetric::verify(peer_spk, req->sig, hash_e2e_primary_key, local_session_id.get())) {
         auto response = std::make_unique<Layer4_ConnectionClose>("Shared secret hash signature verification failed");
         send(conn, std::move(response));
