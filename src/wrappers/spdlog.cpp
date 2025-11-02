@@ -18,6 +18,7 @@ export namespace spdlog {
     using spdlog::set_level;
     using spdlog::register_logger;
     using spdlog::default_logger;
+    using spdlog::get;
 
     namespace level {
         using spdlog::level::level_enum;

@@ -12,7 +12,7 @@ export namespace snet::managers::keys {
     auto get_info(
         crypt::bytes::RawBytes const &hashed_username,
         crypt::bytes::SecureBytes const &hashed_password)
-        -> std::optional<credentials::KeyStoreData>;
+        -> std::unique_ptr<credentials::KeyStoreData>;
 
     auto set_info(
         credentials::KeyStoreData &&key_info)
@@ -32,10 +32,9 @@ export namespace snet::managers::keys {
 auto snet::managers::keys::get_info(
     crypt::bytes::RawBytes const &hashed_username,
     crypt::bytes::SecureBytes const &hashed_password)
-    -> std::optional<credentials::KeyStoreData> {
+    -> std::unique_ptr<credentials::KeyStoreData> {
     const auto serialized = credentials::keyring::get_password(hashed_username, hashed_password);
-    const auto info = serex::load<credentials::KeyStoreData>(serialized);
-    return {info};
+    return serex::load<credentials::KeyStoreData*>(serialized);
 }
 
 

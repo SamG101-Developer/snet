@@ -57,7 +57,7 @@ export namespace snet::comm_stack::layers {
         auto handle_bootstrap_request(
             std::string const &peer_ip,
             std::uint16_t peer_port,
-            std::unique_ptr<LayerD_BootstrapRequest> &&req)
+            std::unique_ptr<LayerD_BootstrapRequest> &&req) const
             -> void;
 
         auto handle_bootstrap_response(
@@ -155,8 +155,12 @@ auto snet::comm_stack::layers::LayerD::load_cache_from_file() const
 auto snet::comm_stack::layers::LayerD::handle_bootstrap_request(
     std::string const &peer_ip,
     std::uint16_t peer_port,
-    std::unique_ptr<LayerD_BootstrapRequest> &&req)
+    std::unique_ptr<LayerD_BootstrapRequest> &&req) const
     -> void {
+    m_logger->info(std::format(
+        "LayerD received bootstrap request from {}@{}:{}",
+        peer_ip, peer_port, utils::to_hex(req->conn_tok)));
+
     // Get the connection from the cache.
     const auto conn = ConnectionCache::connections[req->conn_tok].get();
 
@@ -184,6 +188,10 @@ auto snet::comm_stack::layers::LayerD::handle_bootstrap_response(
     std::uint16_t peer_port,
     std::unique_ptr<LayerD_BootstrapResponse> &&req)
     -> void {
+    m_logger->info(std::format(
+        "LayerD received bootstrap response from {}@{}:{}",
+        peer_ip, peer_port, utils::to_hex(req->conn_tok)));
+
     // Check the signature on the response.
     const auto d_spk = m_directory_service_temp_map[{peer_ip, peer_port}];
     const auto aad = crypt::asymmetric::create_aad(req->conn_tok, m_self_id);

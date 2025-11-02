@@ -31,11 +31,11 @@ snet::nodes::DirectoryNode::DirectoryNode(
     crypt::bytes::SecureBytes const &hashed_password,
     const std::uint16_t port,
     openssl::EVP_PKEY *ssk) :
-    AbstractNode(*managers::keys::get_info(hashed_username, hashed_password), comm_stack::CommStack(port)),
+    AbstractNode(managers::keys::get_info(hashed_username, hashed_password), std::make_unique<comm_stack::CommStack>(port)),
     m_name(std::move(name)) {
 
     // Create the communication stack and bootstrapping layer.
-    m_comm_stack.start(&m_node_info);
-    m_comm_stack.setup_boostrap(std::make_unique<comm_stack::layers::LayerD>(
-        &m_node_info, m_comm_stack.get_socket(), utils::decode_bytes(m_name), ssk, m_comm_stack.get_layer_4()));
+    m_comm_stack->start(m_node_info.get());
+    m_comm_stack->setup_boostrap(std::make_unique<comm_stack::layers::LayerD>(
+        m_node_info.get(), m_comm_stack->get_socket(), utils::decode_bytes(m_name), ssk, m_comm_stack->get_layer_4()));
 }

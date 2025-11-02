@@ -3,6 +3,9 @@ import std;
 import serex.serialize;
 import snet.comm_stack.request;
 
+import snet.utils.encoding;
+import snet.crypt.random;
+
 
 export namespace snet::boot {
     auto boot_serex() -> void;
@@ -25,4 +28,10 @@ auto snet::boot::boot_serex() -> void {
     serex::register_polymorphic_type<snet::comm_stack::Layer2_TunnelJoinReject>("snet.comm_stack.Layer2_TunnelJoinReject");
     serex::register_polymorphic_type<snet::comm_stack::Layer2_TunnelDataForward>("snet.comm_stack.Layer2_TunnelDataForward");
     serex::register_polymorphic_type<snet::comm_stack::Layer2_TunnelDataBackward>("snet.comm_stack.Layer2_TunnelDataBackward");
+
+    auto req = std::make_unique<snet::comm_stack::RawRequest>();
+    req->conn_tok = snet::crypt::random::random_bytes(32);
+    auto x = utils::encode_string(serex::save(req));
+    const auto ser = utils::to_hex(x);
+    std::cout << ser << std::endl;
 }
