@@ -116,9 +116,6 @@ auto snet::comm_stack::layers::Layer4::connect(
     // Create the request to request a connection.
     auto req = std::make_unique<Layer4_ConnectionRequest>(m_self_cert, self_epk, self_epk_sig);
 
-    auto serialize_temp = utils::encode_string(serex::save(*req));
-    m_logger->info(utils::to_hex(serialize_temp));
-
     send(ConnectionCache::connections[conn_tok].get(), std::move(req));
     m_logger->info(std::format(
         "Layer4 sent connection request to {}@{}:{}",

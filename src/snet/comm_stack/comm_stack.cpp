@@ -108,7 +108,6 @@ auto snet::comm_stack::CommStack::listen() const
     // Listen for incoming raw requests, and handle them in a new thread.
     while (true) {
         const auto [data, peer_ip, peer_port] = m_sock->recv();
-        m_logger->info(std::format("<- Received data of size {} from {}@{}", data.size(), peer_ip, peer_port));
         auto response = serex::load<RawRequest*>(utils::decode_bytes(data));
         auto tunnel_response = std::unique_ptr<EncryptedRequest>(nullptr);
 
@@ -142,7 +141,6 @@ auto snet::comm_stack::CommStack::listen() const
             }
         }
 
-        m_logger->info(std::format("<- Received request of type '{}' from {}@{}", response->serex_type(), peer_ip, peer_port));
         while (not all_layers_ready()) {
             m_logger->info("Waiting for all layers to be ready...");
             std::this_thread::sleep_for(std::chrono::seconds(1));
