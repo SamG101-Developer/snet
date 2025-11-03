@@ -1,6 +1,8 @@
 module;
 #include <snet/macros.hpp>
 
+#include <genex/actions/remove_if.hpp>
+
 export module snet.comm_stack.layers.layer_d;
 import json;
 import openssl;
@@ -177,6 +179,18 @@ auto snet::comm_stack::layers::LayerD::handle_bootstrap_request(
     std::ranges::sample(
         ConnectionCache::cached_nodes, std::back_inserter(sampled_nodes),
         sample_size, std::mt19937{std::random_device{}()});
+
+    // Todo: why is a bugged entry in the cache?
+    // Todo: temp patch: remove all entries with port=0
+    sampled_nodes |= genex::actions::remove_if([](auto const &entry) { return std::get<1>(entry) == 0; });
+
+    // Print the sampled nodes for debugging.
+    for (auto &[ip, port, id] : sampled_nodes) {
+        m_logger->info(std::format(
+            "LayerD sampled node for bootstrap response: {}@{}:{}",
+            ip, port, utils::to_hex(id)));
+    }
+
     const auto serialize = utils::encode_string(serex::save(sampled_nodes));
     const auto aad = crypt::asymmetric::create_aad(req->conn_tok, conn->peer_id);
     const auto sig = crypt::asymmetric::sign(m_directory_service_ssk, serialize, aad.get());
@@ -219,7 +233,5 @@ auto snet::comm_stack::layers::LayerD::handle_bootstrap_response(
         };
         file_data.emplace_back(json_entry);
     }
-    if (not std::filesystem::exists(m_node_cache_file_path)) {
-        utils::write_file(m_node_cache_file_path, file_data.dump(4));
-    }
+    utils::write_file(m_node_cache_file_path, file_data.dump(4));
 }

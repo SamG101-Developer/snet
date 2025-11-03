@@ -98,7 +98,7 @@ auto snet::managers::profile::create_profile(
     utils::write_file(constants::PROFILE_FILE, current_profiles.dump(4));
 
     // Create the profile cache directory if it doesn't exist.
-    utils::write_file(constants::PROFILE_CACHE_DIR / (utils::to_hex(hashed_username) + ".json"), nlohmann::json::object().dump(4));
+    utils::write_file(constants::PROFILE_CACHE_DIR / (utils::to_hex(hashed_username) + ".json"), "[]");
 
     // Key and certificate information, and set information into the keyring.
     const auto ssk = crypt::asymmetric::generate_sig_keypair();

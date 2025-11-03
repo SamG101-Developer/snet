@@ -220,7 +220,7 @@ auto create_nodes() -> void {
     for (auto i = 0; i < NODE_COUNT; ++i) {
         const auto username = std::string("node.") + std::to_string(i);
         const auto password = std::string("pass.") + std::to_string(i);
-        if (auto info = snet::managers::ds::validate_directory_profile(username); info.has_value()) {
+        if (auto info = snet::managers::profile::validate_profile(username, password); info.has_value()) {
             snet::managers::keys::del_info(std::get<0>(*info));
         }
         snet::managers::profile::delete_profile(username, password);
