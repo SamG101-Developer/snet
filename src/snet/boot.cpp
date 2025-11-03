@@ -16,8 +16,8 @@ auto snet::boot::boot_serex() -> void {
     // Register serialization polymorphic types.
     serex::register_polymorphic_type<snet::comm_stack::RawRequest>("snet.comm_stack.RawRequest");
     serex::register_polymorphic_type<snet::comm_stack::EncryptedRequest>("snet.comm_stack.EncryptedRequest");
-    serex::register_polymorphic_type<snet::comm_stack::LayerD_BootstrapRequest>("snet.comm_stack.LayerD_BootstrapRequest");
-    serex::register_polymorphic_type<snet::comm_stack::LayerD_BootstrapResponse>("snet.comm_stack.LayerD_BootstrapResponse");
+    serex::register_polymorphic_type<snet::comm_stack::LayerD_BootstrapRequest>("snet.comm_stack.layers.LayerD_BootstrapRequest");
+    serex::register_polymorphic_type<snet::comm_stack::LayerD_BootstrapResponse>("snet.comm_stack.layers.LayerD_BootstrapResponse");
     serex::register_polymorphic_type<snet::comm_stack::Layer4_ConnectionRequest>("snet.comm_stack.layers.Layer4_ConnectionRequest");
     serex::register_polymorphic_type<snet::comm_stack::Layer4_ConnectionAccept>("snet.comm_stack.layers.Layer4_ConnectionAccept");
     serex::register_polymorphic_type<snet::comm_stack::Layer4_ConnectionAck>("snet.comm_stack.layers.Layer4_ConnectionAck");
