@@ -2,6 +2,7 @@ module;
 #include <snet/macros.hpp>
 
 #include <genex/actions/remove_if.hpp>
+#include <genex/algorithms/contains.hpp>
 
 export module snet.comm_stack.layers.layer_d;
 import json;
@@ -89,8 +90,8 @@ snet::comm_stack::layers::LayerD::LayerD(
     m_logger = utils::create_logger("LayerD");
     m_logger->info("LayerD initialized");
     m_node_cache_file_path = m_is_directory_service
-                                  ? constants::DIRECTORY_SERVICE_NODE_CACHE_DIR / (directory_service_name + ".json")
-                                  : constants::PROFILE_CACHE_DIR / (utils::to_hex(m_self_node_info->hashed_username) + ".json");
+                                 ? constants::DIRECTORY_SERVICE_NODE_CACHE_DIR / (directory_service_name + ".json")
+                                 : constants::PROFILE_CACHE_DIR / (utils::to_hex(m_self_node_info->hashed_username) + ".json");
     load_cache_from_file();
 }
 
@@ -220,11 +221,15 @@ auto snet::comm_stack::layers::LayerD::handle_bootstrap_response(
 
     // Add the nodes from the response to the cache.
     const auto nodes = serex::load<decltype(ConnectionCache::cached_nodes)>(utils::decode_bytes(req->node_info));
-    ConnectionCache::cached_nodes.append_range(nodes);
+    for (auto const &node : nodes) {
+        if (not genex::algorithms::contains(ConnectionCache::cached_nodes, std::get<2>(node), [](auto const &entry) { return std::get<2>(entry); })) {
+            ConnectionCache::cached_nodes.emplace_back(node);
+        }
+    }
     m_logger->info(std::format("LayerD successfully bootstrapped and added {} nodes to cache", nodes.size()));
 
     // Update the file based cache.
-    auto file_data = nlohmann::json::parse(utils::read_file(m_node_cache_file_path));
+    auto file_data = nlohmann::json::array();
     for (auto &entry : ConnectionCache::cached_nodes) {
         const auto json_entry = nlohmann::json{
             {"address", std::get<0>(entry)},
