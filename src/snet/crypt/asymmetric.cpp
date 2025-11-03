@@ -63,11 +63,19 @@ export namespace snet::crypt::asymmetric {
     auto serialize_private(const openssl::EVP_PKEY *sk)
         -> bytes::SecureBytes;
 
-    auto load_public_key(
+    auto load_public_key_sig(
         const bytes::RawBytes &pk_bytes)
         -> openssl::EVP_PKEY*;
 
-    auto load_private_key(
+    auto load_private_key_sig(
+        const bytes::SecureBytes &sk_bytes)
+        -> openssl::EVP_PKEY*;
+
+    auto load_public_key_kem(
+        const bytes::RawBytes &pk_bytes)
+        -> openssl::EVP_PKEY*;
+
+    auto load_private_key_kem(
         const bytes::SecureBytes &sk_bytes)
         -> openssl::EVP_PKEY*;
 }
@@ -190,15 +198,24 @@ auto snet::crypt::asymmetric::encaps(
     auto ss_len = static_cast<std::size_t>(0);
     auto ct_len = static_cast<std::size_t>(0);
     const auto ectx = openssl::EVP_PKEY_CTX_new_from_pkey(nullptr, pk, nullptr);
+    if (ectx == nullptr) {
+        throw std::runtime_error("Failed to create encapsulation context");
+    }
 
     // Initialize the encapsulation and get the lengths of the shared secret and ciphertext.
-    openssl::EVP_PKEY_encapsulate_init(ectx, nullptr);
-    openssl::EVP_PKEY_encapsulate(ectx, nullptr, &ct_len, nullptr, &ss_len);
+    if (openssl::EVP_PKEY_encapsulate_init(ectx, nullptr) != 1) {
+        throw std::runtime_error("Failed to initialize encapsulation");
+    }
+    if (openssl::EVP_PKEY_encapsulate(ectx, nullptr, &ct_len, nullptr, &ss_len) != 1) {
+        throw std::runtime_error("Failed to get encapsulation lengths");
+    }
     auto ss = bytes::SecureBytes(ss_len);
     auto ct = bytes::RawBytes(ct_len);
 
     // Encapsulate the shared secret and ciphertext.
-    openssl::EVP_PKEY_encapsulate(ectx, ct.data(), &ct_len, ss.data(), &ss_len);
+    if (openssl::EVP_PKEY_encapsulate(ectx, ct.data(), &ct_len, ss.data(), &ss_len) != 1) {
+        throw std::runtime_error("Failed to encapsulate shared secret and ciphertext");
+    }
     openssl::EVP_PKEY_CTX_free(ectx);
 
     // Return the ciphertext and shared secret encapsulated in a CipherText structure.
@@ -266,7 +283,7 @@ auto snet::crypt::asymmetric::serialize_private(
 }
 
 
-auto snet::crypt::asymmetric::load_public_key(
+auto snet::crypt::asymmetric::load_public_key_sig(
     const bytes::RawBytes &pk_bytes)
     -> openssl::EVP_PKEY* {
     // Create a new public key from the bytes.
@@ -275,10 +292,28 @@ auto snet::crypt::asymmetric::load_public_key(
 }
 
 
-auto snet::crypt::asymmetric::load_private_key(
+auto snet::crypt::asymmetric::load_private_key_sig(
     const bytes::SecureBytes &sk_bytes)
     -> openssl::EVP_PKEY* {
     // Create a new private key from the bytes.
     return openssl::EVP_PKEY_new_raw_private_key_ex(
         nullptr, SIG_SCHEME, nullptr, sk_bytes.data(), sk_bytes.size());
+}
+
+
+auto snet::crypt::asymmetric::load_public_key_kem(
+    const bytes::RawBytes &pk_bytes)
+    -> openssl::EVP_PKEY* {
+    // Create a new public key from the bytes.
+    return openssl::EVP_PKEY_new_raw_public_key_ex(
+        nullptr, KEM_SCHEME, nullptr, pk_bytes.data(), pk_bytes.size());
+}
+
+
+auto snet::crypt::asymmetric::load_private_key_kem(
+    const bytes::SecureBytes &sk_bytes)
+    -> openssl::EVP_PKEY* {
+    // Create a new private key from the bytes.
+    return openssl::EVP_PKEY_new_raw_private_key_ex(
+        nullptr, KEM_SCHEME, nullptr, sk_bytes.data(), sk_bytes.size());
 }
