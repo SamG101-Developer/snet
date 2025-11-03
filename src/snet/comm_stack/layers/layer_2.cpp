@@ -23,6 +23,7 @@ import snet.crypt.timestamp;
 import snet.comm_stack.connection;
 import snet.comm_stack.request;
 import snet.comm_stack.layers.layer_3;
+import snet.comm_stack.layers.layer_d;
 import snet.comm_stack.layers.layer_4;
 import snet.net.socket;
 import snet.utils.encoding;
@@ -48,6 +49,7 @@ export namespace snet::comm_stack::layers {
         Connection *m_self_conn = nullptr;
 
         Layer3 *m_l3 = nullptr;
+        LayerD *m_ld = nullptr;
         Layer4 *m_l4 = nullptr;
 
     public:
@@ -55,6 +57,7 @@ export namespace snet::comm_stack::layers {
             credentials::KeyStoreData *self_node_info,
             net::Socket *sock,
             Layer3 *l3,
+            LayerD *ld,
             Layer4 *l4);
 
         auto create_route()
@@ -129,9 +132,11 @@ snet::comm_stack::layers::Layer2::Layer2(
     credentials::KeyStoreData *self_node_info,
     net::Socket *sock,
     Layer3 *l3,
+    LayerD *ld,
     Layer4 *l4) :
     LayerN(self_node_info, sock),
     m_l3(l3),
+    m_ld(ld),
     m_l4(l4) {
     m_logger = utils::create_logger("Layer2");
     m_logger->info("Layer2 initialized");
@@ -143,8 +148,9 @@ auto snet::comm_stack::layers::Layer2::create_route()
     // Checked there are enough cached nodes to create a route.
     while (ConnectionCache::cached_nodes.size() < HOP_COUNT + 1) {
         m_logger->warn("Not enough cached nodes to create a route; waiting...");
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        m_ld->request_bootstrap();
     }
+    m_logger->info("Sufficient cached nodes available; creating route");
 
     // Copy the cache and remove this node from it.
     auto cache = ConnectionCache::cached_nodes;
@@ -465,9 +471,8 @@ auto snet::comm_stack::layers::Layer2::send_tunnel_forward(
     enc_req->conn_tok = node_list.front()->conn_tok;
 
     // Layer the tunnel for subsequent nodes in the route.
-    auto wrapped_req = std::make_unique<Layer2_TunnelDataForward>();
     for (auto const *node : std::vector(node_list.begin() + 1, node_list.end())) {
-        wrapped_req = std::make_unique<Layer2_TunnelDataForward>(utils::encode_string(serex::save(enc_req)));
+        auto wrapped_req = std::make_unique<Layer2_TunnelDataForward>(utils::encode_string(serex::save(enc_req)));
         attach_metadata(node, wrapped_req.get());
         ct = crypt::symmetric::encrypt(*node->e2e_key, utils::encode_string<true>(serex::save(wrapped_req)));
         enc_req = std::make_unique<EncryptedRequest>(utils::encode_string(serex::save(ct)));
