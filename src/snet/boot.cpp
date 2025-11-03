@@ -22,10 +22,10 @@ auto snet::boot::boot_serex() -> void {
     serex::register_polymorphic_type<snet::comm_stack::Layer4_ConnectionAccept>("snet.comm_stack.layers.Layer4_ConnectionAccept");
     serex::register_polymorphic_type<snet::comm_stack::Layer4_ConnectionAck>("snet.comm_stack.layers.Layer4_ConnectionAck");
     serex::register_polymorphic_type<snet::comm_stack::Layer4_ConnectionClose>("snet.comm_stack.layers.Layer4_ConnectionClose");
-    serex::register_polymorphic_type<snet::comm_stack::Layer2_RouteExtensionRequest>("snet.comm_stack.Layer2_RouteExtensionRequest");
-    serex::register_polymorphic_type<snet::comm_stack::Layer2_TunnelJoinRequest>("snet.comm_stack.Layer2_TunnelJoinRequest");
-    serex::register_polymorphic_type<snet::comm_stack::Layer2_TunnelJoinAccept>("snet.comm_stack.Layer2_TunnelJoinAccept");
-    serex::register_polymorphic_type<snet::comm_stack::Layer2_TunnelJoinReject>("snet.comm_stack.Layer2_TunnelJoinReject");
-    serex::register_polymorphic_type<snet::comm_stack::Layer2_TunnelDataForward>("snet.comm_stack.Layer2_TunnelDataForward");
-    serex::register_polymorphic_type<snet::comm_stack::Layer2_TunnelDataBackward>("snet.comm_stack.Layer2_TunnelDataBackward");
+    serex::register_polymorphic_type<snet::comm_stack::Layer2_RouteExtensionRequest>("snet.comm_stack.layers.Layer2_RouteExtensionRequest");
+    serex::register_polymorphic_type<snet::comm_stack::Layer2_TunnelJoinRequest>("snet.comm_stack.layers.Layer2_TunnelJoinRequest");
+    serex::register_polymorphic_type<snet::comm_stack::Layer2_TunnelJoinAccept>("snet.comm_stack.layers.Layer2_TunnelJoinAccept");
+    serex::register_polymorphic_type<snet::comm_stack::Layer2_TunnelJoinReject>("snet.comm_stack.layers.Layer2_TunnelJoinReject");
+    serex::register_polymorphic_type<snet::comm_stack::Layer2_TunnelDataForward>("snet.comm_stack.layers.Layer2_TunnelDataForward");
+    serex::register_polymorphic_type<snet::comm_stack::Layer2_TunnelDataBackward>("snet.comm_stack.layers.Layer2_TunnelDataBackward");
 }
