@@ -288,7 +288,7 @@ auto snet::comm_stack::layers::Layer4::handle_connection_ack(
     const auto peer_spk = m_cached_pkeys[conn->peer_id];
 
     // Verify the signature on the hash of the shared secret.
-    const auto hash_e2e_primary_key = crypt::hash::sha3_256(*conn->e2e_key);  // todo: this "*" fails.
+    const auto hash_e2e_primary_key = crypt::hash::sha3_256(*conn->e2e_key);
     if (not crypt::asymmetric::verify(peer_spk, req->sig, hash_e2e_primary_key, local_session_id.get())) {
         auto response = std::make_unique<Layer4_ConnectionClose>("Shared secret hash signature verification failed");
         send(conn, std::move(response));

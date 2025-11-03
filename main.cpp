@@ -12,6 +12,8 @@ import snet.crypt.hash;
 import snet.crypt.random;
 import snet.net.socket;
 import snet.utils.assert;
+import snet.utils.encoding;
+
 import snet.manager.cmd_handler;
 import snet.manager.profile_manager;
 import snet.manager.ds_manager;
@@ -79,7 +81,8 @@ import snet.cli;
 //     const auto message = snet::crypt::bytes::SecureBytes{'h', 'e', 'l', 'l', 'o'};
 //
 //     // Encrypt and decrypt the message
-//     const auto [ciphertext, iv, tag] = snet::crypt::symmetric::encrypt(key, message);
+//     auto [ciphertext, iv, tag] = snet::crypt::symmetric::encrypt(key, message);
+//     std::cout << snet::utils::to_hex(ciphertext) << std::endl;
 //     const auto decrypted_message = snet::crypt::symmetric::decrypt(key, ciphertext, iv, tag);
 //
 //     // Check if the decrypted message matches the original message
@@ -166,16 +169,16 @@ auto main(const int argc, char **argv) -> int {
     // snet::managers::profile::create_profile(username, password);
     // snet::managers::cmd::handle_join(username, password);
 
-    auto join_as_directory_node = [] {
-        const auto username = std::string("snetwork.directory-service.") + std::to_string(0);
-        snet::managers::cmd::handle_directory(username);
-    };
-
-    auto join_as_node = [] {
-        const auto username = std::string("node.") + std::to_string(0);
-        const auto password = std::string("pass.") + std::to_string(0);
-        snet::managers::cmd::handle_join(username, password);
-    };
+    // auto join_as_directory_node = [] {
+    //     const auto username = std::string("snetwork.directory-service.") + std::to_string(0);
+    //     snet::managers::cmd::handle_directory(username);
+    // };
+    //
+    // auto join_as_node = [] {
+    //     const auto username = std::string("node.") + std::to_string(0);
+    //     const auto password = std::string("pass.") + std::to_string(0);
+    //     snet::managers::cmd::handle_join(username, password);
+    // };
 
     // Join each as threads
     // auto dir_thread = std::jthread(join_as_directory_node);
