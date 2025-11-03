@@ -280,7 +280,7 @@ auto snet::comm_stack::layers::Layer2::handle_tunnel_join_request(
     // Get the connection from the cache.
     const auto conn = ConnectionCache::connections[req->conn_tok].get();
     const auto remote_session_id = crypt::asymmetric::create_aad(req->route_token + req->route_token, conn->peer_id);
-    const auto route_owner_epk = crypt::asymmetric::load_public_key(req->route_owner_epk);
+    const auto route_owner_epk = crypt::asymmetric::load_public_key_kem(req->route_owner_epk);
 
     // Check if this node is eligible to accept the tunnel join request.
     if (m_participating_route_keys.size() >= 3) {
@@ -291,7 +291,7 @@ auto snet::comm_stack::layers::Layer2::handle_tunnel_join_request(
 
     // Create a master key and kem-wrapped master key,
     const auto kem = crypt::asymmetric::encaps(route_owner_epk);
-    const auto self_ssk = crypt::asymmetric::load_private_key(m_self_node_info->secret_key);
+    const auto self_ssk = crypt::asymmetric::load_private_key_sig(m_self_node_info->secret_key);
     const auto kem_sig = crypt::asymmetric::sign(self_ssk, kem.ct, remote_session_id.get());
     m_participating_route_keys[req->conn_tok] = kem.ss;
 
@@ -352,7 +352,6 @@ auto snet::comm_stack::layers::Layer2::handle_tunnel_join_accept(
     auto ss = crypt::asymmetric::decaps(m_route->candidate_node->self_esk, req->kem_wrapped_p2p_primary_key);
     m_route->candidate_node->e2e_key = std::move(ss);
     m_route->candidate_node->state = ConnectionState::CONNECTION_OPEN;
-    crypt::bytes::immediate_release(ss);
 
     // Log the successful addition of the node to the route.
     m_logger->info(std::format("Layer2 node {} successfully joined the route", utils::to_hex(peer_id)));

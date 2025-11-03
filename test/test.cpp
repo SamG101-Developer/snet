@@ -40,10 +40,10 @@ public:
     }
 
     auto add_new_log_message(std::string const &message) -> void {
-        m_messages.emplace_back(std::move(message));
+        m_messages.emplace_back(message);
         const auto label = new QLabel(QString::fromStdString(m_messages.back()), this);
         label->setWordWrap(true);
-        label->setTextInteractionFlags(Qt::TextSelectableByMouse | Qt::TextSelectableByKeyboard);
+        // label->setTextInteractionFlags(Qt::TextSelectableByMouse | Qt::TextSelectableByKeyboard);
         layout()->addWidget(label);
     }
 

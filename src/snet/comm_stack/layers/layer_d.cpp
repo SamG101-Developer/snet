@@ -101,7 +101,7 @@ auto snet::comm_stack::layers::LayerD::request_bootstrap()
     for (auto i = 0; i < 3; ++i) {
         // Choose a random directory service to connect to.
         auto [d_name, d_address, d_port, d_id, d_spk] = managers::ds::get_random_directory_profile(exclude);
-        m_directory_service_temp_map[{d_address, d_port}] = crypt::asymmetric::load_public_key(d_spk);
+        m_directory_service_temp_map[{d_address, d_port}] = crypt::asymmetric::load_public_key_sig(d_spk);
         exclude.push_back(d_name);
 
         // Create an encrypted connection to the directory service.
@@ -126,6 +126,10 @@ auto snet::comm_stack::layers::LayerD::handle_command(
     std::uint16_t peer_port,
     std::unique_ptr<RawRequest> &&req)
     -> void {
+    m_logger->info(std::format(
+        "LayerD received request of type {} from {}@{}:{}",
+        req->serex_type(), peer_ip, peer_port, utils::to_hex(req->conn_tok)));
+
     // Map the request type to the appropriate handler.
     MAP_TO_HANDLER(D, LayerD_BootstrapRequest, m_is_directory_service, handle_bootstrap_request);
     MAP_TO_HANDLER(D, LayerD_BootstrapResponse, not m_is_directory_service, handle_bootstrap_response);

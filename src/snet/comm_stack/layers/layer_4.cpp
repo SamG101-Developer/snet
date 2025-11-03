@@ -84,7 +84,7 @@ snet::comm_stack::layers::Layer4::Layer4(
     credentials::KeyStoreData *self_node_info,
     net::Socket *sock) :
     LayerN(self_node_info, sock),
-    m_static_skey(crypt::asymmetric::load_private_key(self_node_info->secret_key)),
+    m_static_skey(crypt::asymmetric::load_private_key_sig(self_node_info->secret_key)),
     m_self_cert(self_node_info->certificate) {
     m_logger = utils::create_logger("Layer4");
     m_logger->info("Layer4 initialized");
@@ -102,7 +102,7 @@ auto snet::comm_stack::layers::Layer4::connect(
     const auto remote_session_id = conn_tok + peer_id;
 
     // Generate an ephemeral key pair for this connection (exclusively).
-    const auto self_esk = crypt::asymmetric::generate_sig_keypair();
+    const auto self_esk = crypt::asymmetric::generate_kem_keypair();
     const auto self_epk = crypt::asymmetric::serialize_public(self_esk);
     const auto aad = crypt::asymmetric::create_aad(conn_tok, peer_id);
     const auto self_epk_sig = crypt::asymmetric::sign(m_static_skey, self_epk, aad.get());
@@ -110,11 +110,14 @@ auto snet::comm_stack::layers::Layer4::connect(
     // Create the connection object to track the conversation.
     auto conn = std::make_unique<Connection>(
         peer_ip, peer_port, peer_id, conn_tok, ConnectionState::PENDING_CONNECTION);
+    conn->self_esk = self_esk;
+
     const auto conn_ptr = conn.get();
     ConnectionCache::connections[conn_tok] = std::move(conn);
 
     // Create the request to request a connection.
-    auto req = std::make_unique<Layer4_ConnectionRequest>(m_self_cert, self_epk, self_epk_sig);
+    auto req = std::make_unique<Layer4_ConnectionRequest>(
+        m_self_cert, self_epk, self_epk_sig);
 
     send(ConnectionCache::connections[conn_tok].get(), std::move(req));
     m_logger->info(std::format(
@@ -170,7 +173,7 @@ auto snet::comm_stack::layers::Layer4::handle_connection_request(
     // Load information off of the request.
     const auto peer_cert = crypt::certificate::load_certificate(req->req_cert);
     const auto peer_spk = crypt::certificate::extract_pkey_from_cert(peer_cert);
-    const auto peer_epk = crypt::asymmetric::load_public_key(req->req_epk);
+    const auto peer_epk = crypt::asymmetric::load_public_key_kem(req->req_epk);
     const auto peer_id = crypt::certificate::extract_id_from_cert(peer_cert);
 
     // Create the connection object to track the conversation.
@@ -257,7 +260,6 @@ auto snet::comm_stack::layers::Layer4::handle_connection_accept(
     // Decapsulate the KEM-wrapped primary key to get the shared secret.
     auto shared_secret = crypt::asymmetric::decaps(conn->self_esk, req->kem_wrapped_p2p_primary_key);
     conn->e2e_key = std::move(shared_secret);
-    crypt::bytes::immediate_release(shared_secret);
 
     // Create a new Layer4_ConnectionAck response and send it.
     const auto hash_e2e_primary_key = crypt::hash::sha3_256(*conn->e2e_key);
