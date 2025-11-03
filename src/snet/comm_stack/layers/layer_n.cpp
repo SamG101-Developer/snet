@@ -86,7 +86,7 @@ auto snet::comm_stack::layers::LayerN::send_secure(
     -> void {
     // Attach connection metadata to the request and serialize.
     attach_metadata(conn, req.get());
-    const auto req_serialized = utils::encode_string<true>(serex::save(*req));
+    const auto req_serialized = utils::encode_string<true>(serex::save(req));
 
     // Queue the request until the connection is accepted.
     while (not conn->is_accepted()) {
@@ -96,12 +96,12 @@ auto snet::comm_stack::layers::LayerN::send_secure(
     // Create the ciphertext using the correct primary key.
     auto ct = crypt::symmetric::encrypt(
         *ConnectionCache::connections[conn->conn_tok]->e2e_key, req_serialized);
-    auto enc_req = EncryptedRequest(utils::encode_string(serex::save(ct)));
+    auto enc_req = std::make_unique<EncryptedRequest>(utils::encode_string(serex::save(ct)));
     auto enc_req_serialized = utils::encode_string(serex::save(enc_req));
 
     // Debug the send action and send the data via the socket.
     m_logger->debug(std::format(
         "LayerN sending SECURE request of size {} to {}@{}:{}",
-        enc_req.ciphertext.size(), utils::to_hex(conn->peer_id), conn->peer_ip, conn->peer_port));
+        enc_req->ciphertext.size(), utils::to_hex(conn->peer_id), conn->peer_ip, conn->peer_port));
     m_sock->send(enc_req_serialized, conn->peer_ip, conn->peer_port);
 }

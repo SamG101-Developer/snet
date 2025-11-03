@@ -410,9 +410,9 @@ auto snet::comm_stack::layers::Layer2::handle_tunnel_data_backward(
         const auto prev_conn = ConnectionCache::connections[std::move(prev_conn_tok)].get();
 
         attach_metadata(prev_conn, req.get());
-        auto ct = crypt::symmetric::encrypt(m_participating_route_keys[prev_conn->conn_tok], utils::encode_string<true>(serex::save(*req)));
-        auto enc_req = EncryptedRequest(utils::encode_string(serex::save(ct)));
-        enc_req.conn_tok = req->conn_tok;
+        auto ct = crypt::symmetric::encrypt(m_participating_route_keys[prev_conn->conn_tok], utils::encode_string<true>(serex::save(req)));
+        auto enc_req = std::make_unique<EncryptedRequest>(utils::encode_string(serex::save(ct)));
+        enc_req->conn_tok = req->conn_tok;
         auto wrapped_req = Layer2_TunnelDataBackward(utils::encode_string(serex::save(enc_req)));
         send_secure(prev_conn, std::move(req));
         return;
@@ -461,7 +461,7 @@ auto snet::comm_stack::layers::Layer2::send_tunnel_forward(
     // Create the packaged request for the target node.
     attach_metadata(node_list.front(), req.get());
     m_logger->info(std::format("Layer2 sending tunnel forward request via {} hops", hops));
-    auto ct = crypt::symmetric::encrypt(*node_list.front()->e2e_key, utils::encode_string<true>(serex::save(*req)));
+    auto ct = crypt::symmetric::encrypt(*node_list.front()->e2e_key, utils::encode_string<true>(serex::save(req)));
     auto enc_req = std::make_unique<EncryptedRequest>(utils::encode_string(serex::save(ct)));
     enc_req->conn_tok = node_list.front()->conn_tok;
 
@@ -470,7 +470,7 @@ auto snet::comm_stack::layers::Layer2::send_tunnel_forward(
     for (auto const *node : std::vector(node_list.begin() + 1, node_list.end())) {
         wrapped_req = std::make_unique<Layer2_TunnelDataForward>(utils::encode_string(serex::save(enc_req)));
         attach_metadata(node, wrapped_req.get());
-        ct = crypt::symmetric::encrypt(*node->e2e_key, utils::encode_string<true>(serex::save(*wrapped_req)));
+        ct = crypt::symmetric::encrypt(*node->e2e_key, utils::encode_string<true>(serex::save(wrapped_req)));
         enc_req = std::make_unique<EncryptedRequest>(utils::encode_string(serex::save(ct)));
         enc_req->conn_tok = node->conn_tok;
     }
@@ -487,9 +487,9 @@ auto snet::comm_stack::layers::Layer2::send_tunnel_backward(
     -> void {
     // Encrypt and send the request to the previous node in the route.
     attach_metadata(prev_conn, req.get());
-    auto ct = crypt::symmetric::encrypt(m_participating_route_keys.at(prev_conn->conn_tok), utils::encode_string<true>(serex::save(*req)));
-    const auto enc_req = std::make_unique<EncryptedRequest>(utils::encode_string(serex::save(ct)));
+    auto ct = crypt::symmetric::encrypt(m_participating_route_keys.at(prev_conn->conn_tok), utils::encode_string<true>(serex::save(req)));
+    auto enc_req = std::make_unique<EncryptedRequest>(utils::encode_string(serex::save(ct)));
     enc_req->conn_tok = prev_conn->conn_tok;
-    auto wrapped_req = std::make_unique<Layer2_TunnelDataBackward>(utils::encode_string(serex::save(*enc_req)));
+    auto wrapped_req = std::make_unique<Layer2_TunnelDataBackward>(utils::encode_string(serex::save(enc_req)));
     send_secure(prev_conn, std::move(wrapped_req));
 }
