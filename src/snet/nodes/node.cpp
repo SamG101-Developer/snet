@@ -30,7 +30,11 @@ snet::nodes::Node::Node(
     m_comm_stack->start(m_node_info.get());
     m_comm_stack->setup_boostrap(std::make_unique<comm_stack::layers::LayerD>(
         m_node_info.get(), m_comm_stack->get_socket(), "", nullptr, m_comm_stack->get_layer_4()));
-    m_comm_stack->get_layer_d()->request_bootstrap();
+
+    // Thread a call to the bootstrapper.
+    std::jthread([this] {
+        m_comm_stack->get_layer_d()->request_bootstrap();
+    });
 
     // Todo: request a tunnel for a testing node, enable http proxying etc.
     if (utils::to_hex(m_node_info->hashed_username) == "cdd5a8e37ff76bd3ec78ef8238b699c31a3f22adc5f55278a07a9b7b389960dc") {
