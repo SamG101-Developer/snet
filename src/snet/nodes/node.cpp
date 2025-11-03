@@ -1,10 +1,13 @@
 export module snet.nodes.node;
 import std;
+
 import snet.comm_stack.comm_stack;
 import snet.comm_stack.layers.layer_d;
 import snet.crypt.bytes;
 import snet.manager.key_manager;
 import snet.nodes.abstract_node;
+
+import snet.utils.encoding;
 
 
 export namespace snet::nodes {
@@ -30,4 +33,8 @@ snet::nodes::Node::Node(
     m_comm_stack->get_layer_d()->request_bootstrap();
 
     // Todo: request a tunnel for a testing node, enable http proxying etc.
+    if (utils::to_hex(m_node_info->hashed_username) == "cdd5a8e37ff76bd3ec78ef8238b699c31a3f22adc5f55278a07a9b7b389960dc") {
+        std::cout << "THIS NODE WILL TEST ROUTING" << std::endl;
+        m_comm_stack->get_layer_2()->create_route();
+    }
 }

@@ -153,7 +153,7 @@ auto snet::comm_stack::layers::Layer2::create_route()
     // Add this node as the first in the route (self-send to tunnel onwards).
     m_logger->info("Creating pre-entry self connection");
     auto self_conn = std::make_unique<Connection>(
-        "", m_self_node_info->port, m_self_node_info->identifier,
+        "127.0.0.1", m_self_node_info->port, m_self_node_info->identifier,
         crypt::random::random_bytes(32) + crypt::timestamp::timestamp_bytes(), ConnectionState::CONNECTION_OPEN);
     self_conn->e2e_key = crypt::symmetric::generate_key();
     m_self_conn = self_conn.get();

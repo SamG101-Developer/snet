@@ -100,7 +100,7 @@ auto snet::comm_stack::layers::LayerD::request_bootstrap()
     // Define the exclusion list to prevent duplicates.
     auto exclude = std::vector<std::string>();
 
-    for (auto i = 0; i < 3; ++i) {
+    for (auto i = 0; i < 1; ++i) {
         // Choose a random directory service to connect to.
         auto [d_name, d_address, d_port, d_id, d_spk] = managers::ds::get_random_directory_profile(exclude);
         m_directory_service_temp_map[{d_address, d_port}] = crypt::asymmetric::load_public_key_sig(d_spk);

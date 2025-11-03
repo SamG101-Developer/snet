@@ -15,8 +15,8 @@ auto main(const int argc, char **argv) -> int {
     openssl::OpenSSL_add_all_algorithms();
     openssl::CRYPTO_secure_malloc_init(std::pow(2, 24), std::pow(2, 6));
 
-    const auto username = std::string("node.") + std::to_string(0);
-    const auto password = std::string("pass.") + std::to_string(0);
+    const auto username = std::string("node.") + std::to_string(4);
+    const auto password = std::string("pass.") + std::to_string(4);
     snet::managers::cmd::handle_join(username, password);
 
     while (true) {

@@ -118,7 +118,7 @@ auto snet::managers::ds::get_random_directory_profile(
     if (available_profiles.empty()) {
         throw std::runtime_error("No available directory profiles.");
     }
-    const auto entry = available_profiles.front();
+    const auto &entry = available_profiles.front();
 
     // Extract the profile information.
     const auto &profile_json = ds_json.at(entry);
