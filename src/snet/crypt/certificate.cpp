@@ -4,6 +4,7 @@ import std;
 import snet.crypt.asymmetric;
 import snet.crypt.bytes;
 import snet.crypt.hash;
+import snet.utils.encoding;
 
 
 export namespace snet::crypt::certificate {
@@ -20,12 +21,13 @@ export namespace snet::crypt::certificate {
 
         // Create the identifier by hashing the public key bytes.
         const auto pk_bytes = asymmetric::serialize_public(sk);
-        const auto id = hash::sha3_256(pk_bytes);
+        auto id = hash::sha3_256(pk_bytes);
+        const auto hex_id = utils::to_hex(id);
 
         // Create a new X.509 name and set the subject and issuer names.
         const auto name = openssl::X509_get_issuer_name(cert);
         openssl::X509_NAME_add_entry_by_txt(name, "O", openssl::MBSTRING_ASC, reinterpret_cast<const unsigned char*>("SNetwork"), -1, -1, 0);
-        openssl::X509_NAME_add_entry_by_txt(name, "CN", openssl::MBSTRING_ASC, id.data(), static_cast<int>(id.size()), -1, 0);
+        openssl::X509_NAME_add_entry_by_txt(name, "CN", openssl::MBSTRING_ASC, reinterpret_cast<const unsigned char*>(hex_id.data()), static_cast<int>(hex_id.size()), -1, 0);
 
         // Set the name and sign the certificate with the private key.
         openssl::X509_set_subject_name(cert, name);
@@ -63,10 +65,11 @@ export namespace snet::crypt::certificate {
         const auto name = openssl::X509_get_subject_name(cert);
         const auto idx = openssl::X509_NAME_get_index_by_NID(name, 13, -1);
         const auto entry = openssl::X509_NAME_get_entry(name, idx);
-        const auto data = openssl::X509_NAME_ENTRY_get_data(entry);
-        const auto len = openssl::ASN1_STRING_length(data);
-        const auto ptr = openssl::ASN1_STRING_get0_data(data);
-        return {ptr, ptr + len};
+        const auto hex_data = openssl::X509_NAME_ENTRY_get_data(entry);
+        const auto hex_len = openssl::ASN1_STRING_length(hex_data);
+        const auto hex_ptr = openssl::ASN1_STRING_get0_data(hex_data);
+        const auto hex_str = std::string(reinterpret_cast<const char*>(hex_ptr), hex_len);
+        return utils::from_hex(hex_str);
     }
 
     auto extract_pkey_from_cert(
