@@ -119,19 +119,13 @@ auto snet::comm_stack::layers::Layer4::connect(
     auto req = std::make_unique<Layer4_ConnectionRequest>(
         m_self_cert, self_epk, self_epk_sig);
 
+    m_logger->info("Layer4 sent connection request to" + FORMAT_PEER_INFO());
     send(ConnectionCache::connections[conn_tok].get(), std::move(req));
-    m_logger->info(std::format(
-        "Layer4 sent connection request to {}@{}:{}",
-        peer_ip, peer_port, utils::to_hex(conn_tok)));
 
     // Wait for the connection to be accepted or rejected.
     while (not(conn_ptr->is_accepted() or conn_ptr->is_rejected())) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
-    m_logger->info(std::format(
-        "Layer4 connection to {}@{}:{} {}",
-        peer_ip, peer_port, utils::to_hex(conn_tok),
-        conn_ptr->is_accepted() ? "accepted" : "rejected"));
     return conn_ptr->is_accepted() ? conn_ptr : nullptr;
 }
 
@@ -141,12 +135,10 @@ auto snet::comm_stack::layers::Layer4::handle_command(
     std::uint16_t peer_port,
     std::unique_ptr<RawRequest> &&req)
     -> void {
-    m_logger->info(std::format(
-        "Layer4 received request of type {} from {}@{}:{}",
-        req->serex_type(), peer_ip, peer_port, utils::to_hex(req->conn_tok)));
+    m_logger->info("Layer4 received request of type " + req->serex_type() + " from" + FORMAT_PEER_INFO());
 
     // Get the token and state of the connection.
-    auto tok = req->conn_tok;
+    const auto tok = req->conn_tok;
     const auto state = ConnectionCache::connections.contains(tok)
                            ? ConnectionCache::connections[tok]->state
                            : ConnectionState::NOT_CONNECTED;
@@ -156,11 +148,6 @@ auto snet::comm_stack::layers::Layer4::handle_command(
     MAP_TO_HANDLER(4, Layer4_ConnectionAccept, state == ConnectionState::PENDING_CONNECTION, handle_connection_accept);
     MAP_TO_HANDLER(4, Layer4_ConnectionAck, state == ConnectionState::PENDING_CONNECTION, handle_connection_ack);
     MAP_TO_HANDLER(4, Layer4_ConnectionClose, true, handle_connection_close);
-
-    // If no handler matched, log a warning.
-    m_logger->warn(std::format(
-        "Layer4 received invalid request type or state from {}@{}:{}",
-        peer_ip, peer_port, utils::to_hex(tok)));
 }
 
 

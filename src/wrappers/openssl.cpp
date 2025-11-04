@@ -45,6 +45,8 @@ export namespace openssl {
     using ::EVP_PKEY_new_raw_private_key_ex;
     using ::EVP_PKEY_new_raw_public_key_ex;
 
+#undef MBSTRING_UTF8
+    auto MBSTRING_UTF8 = MBSTRING_FLAG;
 #undef MBSTRING_ASC
     auto MBSTRING_ASC = MBSTRING_FLAG | 1;
 
