@@ -6,6 +6,7 @@
 #include <QMouseEvent>
 #include <QMutex>
 #include <QProcess>
+#include <QPushButton>
 #include <QScrollArea>
 #include <QScrollBar>
 #include <Qt>
@@ -104,7 +105,18 @@ public:
         }
         scroller->verticalScrollBar()->setValue(scroller->verticalScrollBar()->maximum());
 
+        const auto save_to_file_button = new QPushButton("Save to file");
+        connect(save_to_file_button, &QPushButton::clicked, this, [this] {
+            const auto filename = "node_" + std::to_string(node_id) + "_logs.txt";
+            auto file_content = std::string();
+            for (auto i = 0uz; i < log_display->layout()->count(); ++i) {
+                file_content += log_display->nth_message(i) + "\n";
+            }
+            snet::utils::write_file(std::filesystem::path("../../logs") / filename, file_content);
+        });
+
         dialog->layout()->addWidget(scroller);
+        dialog->layout()->addWidget(save_to_file_button);
         dialog->show();
     }
 
