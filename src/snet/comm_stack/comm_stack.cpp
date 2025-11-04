@@ -120,6 +120,7 @@ auto snet::comm_stack::CommStack::listen() const
         const auto [data, peer_ip, peer_port] = m_sock->recv();
         auto req = serex::load<RawRequest*>(utils::decode_bytes(data));
         auto tunnel_response = std::unique_ptr<EncryptedRequest>(nullptr);
+        m_logger->debug("CommStack processing request" + FORMAT_PEER_INFO());
 
         // Handle secure p2p requests.
         if (req->secure) {
@@ -133,12 +134,14 @@ auto snet::comm_stack::CommStack::listen() const
                 auto raw_data = crypt::symmetric::decrypt(e2e_key, ct, iv, tag);
                 req = serex::load<RawRequest*>(utils::decode_bytes(raw_data));
 
-                // If the response is still encrypted, it is for tunneling.
+                // If the response is still encrypted, it is for tunneling. Decrypt a layer and push onwards.
+                // Todo: maybe use a "if (serex::poly_non_owning_cast<EncryptedRequest>(req) != nullptr)" instead
                 if (req->secure) {
                     m_logger->info("Received tunneled request from" + FORMAT_PEER_INFO());
                     tunnel_response = serex::poly_owning_cast<EncryptedRequest>(std::move(req));
                     e2e_key = m_l2->get_participating_route_keys()[tunnel_response->conn_tok];
-                    auto [ct2, iv2, tag2] = serex::load<crypt::symmetric::CipherText>(utils::decode_bytes(tunnel_response->ciphertext));
+                    auto [ct2, iv2, tag2] = serex::load<crypt::symmetric::CipherText>(
+                        utils::decode_bytes(tunnel_response->ciphertext));
                     raw_data = crypt::symmetric::decrypt(e2e_key, ct2, iv2, tag2);
                     req = serex::load<RawRequest*>(utils::decode_bytes(raw_data));
                 }
