@@ -228,15 +228,18 @@ auto create_nodes() -> void {
     }
 }
 
+#define BOOT 0
 
 auto main(int argc, char *argv[]) -> int {
-    // create_directory_services();
-    // create_nodes();
-
+#if BOOT
+    create_directory_services();
+    create_nodes();
+#else
     qputenv("QT_QPA_PLATFORM", QByteArray("xcb"));
     QApplication app(argc, argv);
     const auto gui = new TestGui();
     return QApplication::exec();
+#endif
 }
 
 
