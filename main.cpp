@@ -142,7 +142,7 @@ import snet.cli;
 
 auto main(const int argc, char **argv) -> int {
     snet::boot::boot_serex();
-    spdlog::set_level(spdlog::level::level_enum::info);
+    spdlog::set_level(spdlog::level::level_enum::debug);
 
     openssl::SSL_load_error_strings();
     openssl::SSL_library_init();

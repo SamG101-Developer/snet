@@ -1,3 +1,6 @@
+module;
+#include <snet/macros.hpp>
+
 export module snet.comm_stack.layers.layer_n;
 import spdlog;
 import serex.serialize;
@@ -73,9 +76,6 @@ auto snet::comm_stack::layers::LayerN::send(
     auto req_serialized = utils::encode_string(serex::save(req));
 
     // Debug the send action and send the data via the socket.
-    m_logger->debug(std::format(
-        "LayerN sending request of size {} to {}@{}:{}",
-        req_serialized.size(), utils::to_hex(conn->peer_id), conn->peer_ip, conn->peer_port));
     m_sock->send(req_serialized, conn->peer_ip, conn->peer_port);
 }
 
@@ -86,7 +86,7 @@ auto snet::comm_stack::layers::LayerN::send_secure(
     -> void {
     // Attach connection metadata to the request and serialize.
     attach_metadata(conn, req.get());
-    auto req_serialized = utils::encode_string<true>(serex::save(req));
+    const auto req_serialized = utils::encode_string<true>(serex::save(req));
 
     // Queue the request until the connection is accepted.
     while (not conn->is_accepted()) {
