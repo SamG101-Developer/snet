@@ -25,7 +25,7 @@ export namespace snet::comm_stack {
         std::uint16_t m_port;
         std::shared_ptr<spdlog::logger> m_logger;
         std::jthread m_listener_thread;
-        credentials::KeyStoreData *m_info;
+        credentials::KeyStoreData *m_info = nullptr;
 
         std::unique_ptr<net::Socket> m_sock;
         std::unique_ptr<layers::Layer2> m_l2 = nullptr;
@@ -118,35 +118,35 @@ auto snet::comm_stack::CommStack::listen() const
     // Listen for incoming raw requests, and handle them in a new thread.
     while (true) {
         const auto [data, peer_ip, peer_port] = m_sock->recv();
-        auto response = serex::load<RawRequest*>(utils::decode_bytes(data));
+        auto req = serex::load<RawRequest*>(utils::decode_bytes(data));
         auto tunnel_response = std::unique_ptr<EncryptedRequest>(nullptr);
 
         // Handle secure p2p requests.
-        if (response->secure) {
-            auto tok = response->conn_tok;
-            auto ct_serialized = utils::decode_bytes(serex::poly_non_owning_cast<EncryptedRequest>(response)->ciphertext);
+        if (req->secure) {
+            auto tok = req->conn_tok;
+            auto ct_serialized = utils::decode_bytes(serex::poly_non_owning_cast<EncryptedRequest>(req)->ciphertext);
             auto [ct, iv, tag] = serex::load<crypt::symmetric::CipherText>(ct_serialized);
 
             // Ensure the token exists in the connection cache.
             if (ConnectionCache::connections.contains(tok)) {
                 auto e2e_key = *ConnectionCache::connections[tok]->e2e_key;
                 auto raw_data = crypt::symmetric::decrypt(e2e_key, ct, iv, tag);
-                response = serex::load<RawRequest*>(utils::decode_bytes(raw_data));
+                req = serex::load<RawRequest*>(utils::decode_bytes(raw_data));
 
                 // If the response is still encrypted, it is for tunneling.
-                if (response->secure) {
-                    m_logger->info(std::format("Received tunneled request from {}@{}:{}", peer_ip, peer_port, utils::to_hex(tok)));
-                    tunnel_response = serex::poly_owning_cast<EncryptedRequest>(std::move(response));
+                if (req->secure) {
+                    m_logger->info("Received tunneled request from" + FORMAT_PEER_INFO());
+                    tunnel_response = serex::poly_owning_cast<EncryptedRequest>(std::move(req));
                     e2e_key = m_l2->get_participating_route_keys()[tunnel_response->conn_tok];
                     auto [ct2, iv2, tag2] = serex::load<crypt::symmetric::CipherText>(utils::decode_bytes(tunnel_response->ciphertext));
                     raw_data = crypt::symmetric::decrypt(e2e_key, ct2, iv2, tag2);
-                    response = serex::load<RawRequest*>(utils::decode_bytes(raw_data));
+                    req = serex::load<RawRequest*>(utils::decode_bytes(raw_data));
                 }
             }
 
             // If the token is unknown, log a warning and continue.
             else {
-                m_logger->warn(std::format("Received secure request with unknown token {} from {}@{}", utils::to_hex(tok), peer_ip, peer_port));
+                m_logger->warn("Received secure request with unknown token" + FORMAT_PEER_INFO());
                 continue;
             }
         }
@@ -161,11 +161,11 @@ auto snet::comm_stack::CommStack::listen() const
         MASTER_HANDLER(Layer4_ConnectionAck, m_l4);
         MASTER_HANDLER(Layer4_ConnectionClose, m_l4);
 
-        MASTER_HANDLER(Layer2_RouteExtensionRequest, m_l2);
+        MASTER_HANDLER(Layer2_RouteExtensionRequest, m_l2, tunnel_response);
         MASTER_HANDLER(Layer2_TunnelJoinRequest, m_l2);
         MASTER_HANDLER(Layer2_TunnelJoinReject, m_l2);
         MASTER_HANDLER(Layer2_TunnelJoinAccept, m_l2);
-        MASTER_HANDLER(Layer2_TunnelDataForward, m_l2);
+        MASTER_HANDLER(Layer2_TunnelDataForward, m_l2, tunnel_response);
         MASTER_HANDLER(Layer2_TunnelDataBackward, m_l2);
 
         MASTER_HANDLER(LayerD_BootstrapRequest, m_ld);
