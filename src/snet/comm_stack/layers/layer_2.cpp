@@ -5,6 +5,7 @@ module;
 #include <genex/actions/remove_if.hpp>
 #include <genex/actions/shuffle.hpp>
 #include <genex/views/materialize.hpp>
+#include <genex/views/map.hpp>
 #include <genex/views/ptr.hpp>
 #include <genex/views/reverse.hpp>
 
@@ -203,13 +204,16 @@ auto snet::comm_stack::layers::Layer2::create_route()
 
         // Add the node if it was accepted; otherwise, try again.
         if (cand_node->is_accepted()) {
-            m_logger->info("Route extension to node" + FORMAT_CONN_INFO(cand_node) + "accepted");
+            m_logger->info("Route extension to node" + FORMAT_CONN_INFO(cand_node) + " accepted");
             m_route->nodes.emplace_back(std::move(cand_node));
         }
     }
 
     m_route->ready = true;
     m_logger->info("Route creation complete");
+    for (auto const &node : m_route->nodes) {
+        m_logger->info("Route node: " + FORMAT_CONN_INFO(node));
+    }
 }
 
 
@@ -219,6 +223,8 @@ auto snet::comm_stack::layers::Layer2::handle_command(
     std::unique_ptr<RawRequest> &&req,
     std::unique_ptr<EncryptedRequest> &&tun_req)
     -> void {
+    m_logger->info("Layer2 received request of type " + req->serex_type() + " from" + FORMAT_PEER_INFO());
+
     // Map the request type and connection state to the appropriate handler.
     MAP_TO_HANDLER(2, Layer2_RouteExtensionRequest, true, handle_route_extension_request, std::move(tun_req));
     MAP_TO_HANDLER(2, Layer2_TunnelJoinRequest, true, handle_tunnel_join_request);
@@ -250,7 +256,7 @@ auto snet::comm_stack::layers::Layer2::handle_route_extension_request(
     if (next_conn == nullptr) {
         m_logger->warn("Layer2 failed to connect to next node" + FORMAT_REQ_INFO(req) + "; rejecting tunnel join request");
         auto rejection = std::make_unique<Layer2_TunnelJoinReject>(req->route_tok, "Node unreachable");
-        send(prev_conn, std::move(rejection));
+        send_secure(prev_conn, std::move(rejection));
         return;
     }
 
@@ -259,7 +265,7 @@ auto snet::comm_stack::layers::Layer2::handle_route_extension_request(
     auto tunnel_join_request = std::make_unique<Layer2_TunnelJoinRequest>(req->route_tok, req->route_owner_epk);
     m_route_forward_token_map[prev_conn->conn_tok] = next_conn->conn_tok;
     m_route_reverse_token_map[next_conn->conn_tok] = prev_conn->conn_tok;
-    send(next_conn, std::move(tunnel_join_request));
+    send_secure(next_conn, std::move(tunnel_join_request));
 }
 
 
@@ -270,10 +276,6 @@ auto snet::comm_stack::layers::Layer2::handle_tunnel_join_request(
     -> void {
     // Log the receipt of the tunnel join request.
     m_logger->info("Layer2 received tunnel join request from" + FORMAT_PEER_INFO());
-    for (auto &[connection_tok, connection] : ConnectionCache::connections) {
-        auto ct = connection->conn_tok;
-        m_logger->debug(std::format("Cached connection: {}. State: {}. IP: {}:{}", utils::to_hex(ct), static_cast<int>(connection->state), connection->peer_ip, connection->peer_port));
-    }
 
     // Get the connection from the cache.
     const auto conn = ConnectionCache::connections[req->conn_tok].get();
@@ -283,11 +285,9 @@ auto snet::comm_stack::layers::Layer2::handle_tunnel_join_request(
     // Check if this node is eligible to accept the tunnel join request.
     if (m_participating_route_keys.size() >= 3) {
         auto rejection = std::make_unique<Layer2_TunnelJoinReject>(req->route_token, "Node decision (capacity full)");
-        send(conn, std::move(rejection));
+        send_secure(conn, std::move(rejection));
         return;
     }
-
-    m_logger->debug("STAGE 5");
 
     // Create a master key and kem-wrapped master key,
     const auto kem = crypt::asymmetric::encaps(route_owner_epk);
@@ -295,13 +295,11 @@ auto snet::comm_stack::layers::Layer2::handle_tunnel_join_request(
     const auto kem_sig = crypt::asymmetric::sign(self_ssk, kem.ct, remote_session_id.get());
     m_participating_route_keys[req->conn_tok] = kem.ss;
 
-    m_logger->debug("STAGE 6");
-
     // Create a new Layer2_TunnelJoinAccept response and send it.
     m_logger->info("Layer2 sending tunnel join accept to" + FORMAT_PEER_INFO());
     auto response = std::make_unique<Layer2_TunnelJoinAccept>(
         req->route_token, m_self_node_info->certificate, kem.ct, kem_sig);
-    send(conn, std::move(response));
+    send_secure(conn, std::move(response)); // todo: feel like this should be send_tunnel_backwards (all info is ready for it so)
 }
 
 
@@ -316,6 +314,7 @@ auto snet::comm_stack::layers::Layer2::handle_tunnel_join_accept(
 
     // If the route token is not for this node's route, tunnel the request backwards.
     if (m_route == nullptr or m_route->candidate_node->conn_tok != req->route_token) {
+        m_logger->info("Layer2 tunneling tunnel join accept backwards");
         const auto prev_conn_tok = m_route_reverse_token_map[req->conn_tok];
         const auto prev_conn = ConnectionCache::connections[prev_conn_tok].get();
         send_tunnel_backward(prev_conn, std::move(req));
@@ -353,7 +352,7 @@ auto snet::comm_stack::layers::Layer2::handle_tunnel_join_accept(
     m_route->candidate_node->state = ConnectionState::CONNECTION_OPEN;
 
     // Log the successful addition of the node to the route.
-    m_logger->info(std::format("Layer2 node {} successfully joined the route", utils::to_hex(peer_id)));
+    m_logger->info("Layer2 node successfully joined the route" + FORMAT_CONN_INFO(m_route->candidate_node));
 }
 
 
@@ -402,6 +401,7 @@ auto snet::comm_stack::layers::Layer2::handle_tunnel_data_backward(
     -> void {
     // Encrypt and send the request to the previous node in the route.
     if (m_route_reverse_token_map.contains(req->conn_tok)) {
+        m_logger->info("Layer2 forwarding data backwards" + FORMAT_PEER_INFO());
         auto prev_conn_tok = m_route_reverse_token_map[req->conn_tok];
         const auto prev_conn = ConnectionCache::connections[std::move(prev_conn_tok)].get();
 
@@ -409,13 +409,14 @@ auto snet::comm_stack::layers::Layer2::handle_tunnel_data_backward(
         auto ct = crypt::symmetric::encrypt(m_participating_route_keys[prev_conn->conn_tok], utils::encode_string<true>(serex::save(req)));
         auto enc_req = std::make_unique<EncryptedRequest>(utils::encode_string(serex::save(ct)));
         enc_req->conn_tok = req->conn_tok;
-        auto wrapped_req = Layer2_TunnelDataBackward(utils::encode_string(serex::save(enc_req)));
-        send_secure(prev_conn, std::move(req));
+
+        auto wrapped_req = std::make_unique<Layer2_TunnelDataBackward>(utils::encode_string(serex::save(enc_req)));
+        send_secure(prev_conn, std::move(wrapped_req));
         return;
     }
 
     // Ensure the request is valid for a route owner
-    if (m_route == nullptr and m_route->nodes.front()->conn_tok != req->conn_tok) {
+    if (m_route == nullptr or m_route->nodes.front()->conn_tok != req->conn_tok) {
         m_logger->warn("Layer2 received invalid tunnel data backward request from" + FORMAT_PEER_INFO());
         return;
     }
@@ -432,12 +433,12 @@ auto snet::comm_stack::layers::Layer2::handle_tunnel_data_backward(
             req = serex::poly_owning_cast<Layer2_TunnelDataBackward>(std::move(inner_req));
             continue;
         }
-        break;
+        else {
+            auto cast_req = serex::poly_owning_cast<RawRequest>(std::move(inner_req));
+            m_logger->info("Layer2 fully unwrapped tunnelled request");
+            send_secure(m_self_conn, std::move(cast_req));
+        }
     }
-
-    // Handle the innermost request.
-    m_logger->info("Layer2 fully unwrapped tunnelled request");
-    send_secure(m_self_conn, std::move(req));
 }
 
 
@@ -461,7 +462,7 @@ auto snet::comm_stack::layers::Layer2::send_tunnel_forward(
 
     // Create the packaged request for the target node.
     attach_metadata(node_list.front(), req.get());
-    m_logger->info(std::format("Layer2 sending tunnel forward request via {} hops", hops));
+    m_logger->info(std::format("Layer2 preparing tunnel forward request via {} hops", hops));
     auto ct = crypt::symmetric::encrypt(*node_list.front()->e2e_key, utils::encode_string<true>(serex::save(req)));
     auto enc_req = std::make_unique<EncryptedRequest>(utils::encode_string(serex::save(ct)));
     attach_metadata(node_list.front(), enc_req.get());
@@ -487,9 +488,13 @@ auto snet::comm_stack::layers::Layer2::send_tunnel_backward(
     -> void {
     // Encrypt and send the request to the previous node in the route.
     attach_metadata(prev_conn, req.get());
-    auto ct = crypt::symmetric::encrypt(m_participating_route_keys.at(prev_conn->conn_tok), utils::encode_string<true>(serex::save(req)));
+    auto ct = crypt::symmetric::encrypt(
+        m_participating_route_keys.at(prev_conn->conn_tok), utils::encode_string<true>(serex::save(req)));
     auto enc_req = std::make_unique<EncryptedRequest>(utils::encode_string(serex::save(ct)));
-    enc_req->conn_tok = prev_conn->conn_tok;
-    auto wrapped_req = std::make_unique<Layer2_TunnelDataBackward>(utils::encode_string(serex::save(enc_req)));
+    attach_metadata(prev_conn, enc_req.get());
+
+    // Wrap the encrypted request in a Layer2_TunnelDataBackward and send it.
+    auto wrapped_req = std::make_unique<Layer2_TunnelDataBackward>(
+        utils::encode_string(serex::save(enc_req)));
     send_secure(prev_conn, std::move(wrapped_req));
 }
