@@ -257,7 +257,7 @@ auto snet::comm_stack::layers::Layer4::handle_connection_accept(
     // Clean-up keys and mark the connection as accepted.
     conn->clean_ephemeral_keys();
     conn->state = ConnectionState::CONNECTION_OPEN;
-    m_logger->info(std::format("Layer4 connection established with {}", utils::to_hex(conn->peer_id)));
+    m_logger->info("Layer4 connection established with" + FORMAT_CONN_INFO(conn));
 }
 
 
