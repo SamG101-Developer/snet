@@ -8,11 +8,13 @@ import snet.crypt.bytes;
 
 
 export namespace snet::comm_stack::layers::http {
-    struct Layer1_HttpConnectToServer final : RawRequest {
-        sys::socket_t client_socket_fd;
+    struct LayerHttp_HttpConnectToServer final : RawRequest {
+        sys::socket_t client_socket_fd = 0;
         std::string server_host;
 
-        Layer1_HttpConnectToServer(
+        LayerHttp_HttpConnectToServer() = default;
+
+        LayerHttp_HttpConnectToServer(
             const sys::socket_t client_socket_fd,
             std::string server_host) :
             client_socket_fd(client_socket_fd),
@@ -20,7 +22,7 @@ export namespace snet::comm_stack::layers::http {
         }
 
         auto serex_type() -> std::string override {
-            return "snet.comm_stack.layers_custom.http.HttpConnectToServer";
+            return "snet.comm_stack.layers.LayerHttp_HttpConnectToServer";
         }
 
         auto serialize(serex::Archive &ar) -> void override {
@@ -29,11 +31,13 @@ export namespace snet::comm_stack::layers::http {
         }
     };
 
-    struct Layer1_HttpDataToServer final : RawRequest {
-        sys::socket_t client_socket_fd;
+    struct LayerHttp_HttpDataToServer final : RawRequest {
+        sys::socket_t client_socket_fd = 0;
         crypt::bytes::RawBytes data;
 
-        Layer1_HttpDataToServer(
+        LayerHttp_HttpDataToServer() = default;
+
+        LayerHttp_HttpDataToServer(
             const sys::socket_t client_socket_fd,
             crypt::bytes::RawBytes data) :
             client_socket_fd(client_socket_fd),
@@ -41,7 +45,7 @@ export namespace snet::comm_stack::layers::http {
         }
 
         auto serex_type() -> std::string override {
-            return "snet.comm_stack.layers_custom.http.HttpDataToServer";
+            return "snet.comm_stack.layers.LayerHttp_HttpDataToServer";
         }
 
         auto serialize(serex::Archive &ar) -> void override {
@@ -50,11 +54,13 @@ export namespace snet::comm_stack::layers::http {
         }
     };
 
-    struct Layer1_HttpDataToClient final : RawRequest {
-        sys::socket_t client_socket_fd;
+    struct LayerHttp_HttpDataToClient final : RawRequest {
+        sys::socket_t client_socket_fd = 0;
         crypt::bytes::RawBytes data;
 
-        Layer1_HttpDataToClient(
+        LayerHttp_HttpDataToClient() = default;
+
+        LayerHttp_HttpDataToClient(
             const sys::socket_t client_socket_fd,
             crypt::bytes::RawBytes data) :
             client_socket_fd(client_socket_fd),
@@ -62,7 +68,7 @@ export namespace snet::comm_stack::layers::http {
         }
 
         auto serex_type() -> std::string override {
-            return "snet.comm_stack.layers_custom.http.HttpDataToClient";
+            return "snet.comm_stack.layers.LayerHttp_HttpDataToClient";
         }
 
         auto serialize(serex::Archive &ar) -> void override {

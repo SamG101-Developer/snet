@@ -53,21 +53,21 @@ export namespace snet::comm_stack::layers::http {
         auto handle_http_connect_to_server(
             std::string const &peer_ip,
             std::uint16_t peer_port,
-            std::unique_ptr<Layer1_HttpConnectToServer> &&req,
+            std::unique_ptr<LayerHttp_HttpConnectToServer> &&req,
             std::unique_ptr<EncryptedRequest> &&tun_req)
             -> void;
 
         auto handle_http_data_to_server(
             std::string const &peer_ip,
             std::uint16_t peer_port,
-            std::unique_ptr<Layer1_HttpDataToServer> &&req,
+            std::unique_ptr<LayerHttp_HttpDataToServer> &&req,
             std::unique_ptr<EncryptedRequest> &&tun_req)
             -> void;
 
         auto handle_http_data_to_client(
             std::string const &peer_ip,
             std::uint16_t peer_port,
-            std::unique_ptr<Layer1_HttpDataToClient> &&req,
+            std::unique_ptr<LayerHttp_HttpDataToClient> &&req,
             std::unique_ptr<EncryptedRequest> &&tun_req)
             -> void;
 
@@ -111,9 +111,9 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_command(
     std::unique_ptr<EncryptedRequest> &&tun_req)
     -> void {
     // Map the request type and connection state to the appropriate handler.
-    MAP_TO_HANDLER(Http, Layer1_HttpConnectToServer, true, handle_http_connect_to_server, std::move(tun_req));
-    MAP_TO_HANDLER(Http, Layer1_HttpDataToServer, true, handle_http_data_to_server, std::move(tun_req));
-    MAP_TO_HANDLER(Http, Layer1_HttpDataToClient, true, handle_http_data_to_client, std::move(tun_req));
+    MAP_TO_HANDLER(Http, LayerHttp_HttpConnectToServer, true, handle_http_connect_to_server, std::move(tun_req));
+    MAP_TO_HANDLER(Http, LayerHttp_HttpDataToServer, true, handle_http_data_to_server, std::move(tun_req));
+    MAP_TO_HANDLER(Http, LayerHttp_HttpDataToClient, true, handle_http_data_to_client, std::move(tun_req));
 }
 
 
@@ -143,7 +143,7 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_proxy_request(
 
     // Create the CONNECT request object and send it through the route.
     const auto client_socket_fd = client_socket.fileno();
-    auto http_conn_req = std::make_unique<Layer1_HttpConnectToServer>(client_socket_fd, std::move(host));
+    auto http_conn_req = std::make_unique<LayerHttp_HttpConnectToServer>(client_socket_fd, std::move(host));
     m_l1->tunnel_application_data_forwards(layer_proto_name(), std::move(http_conn_req));
 
     // Create the response selectable-object that is interacted with from Layer1.
@@ -160,7 +160,7 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_proxy_request(
 auto snet::comm_stack::layers::http::LayerHttp::handle_http_connect_to_server(
     std::string const &peer_ip,
     std::uint16_t peer_port,
-    std::unique_ptr<Layer1_HttpConnectToServer> &&req,
+    std::unique_ptr<LayerHttp_HttpConnectToServer> &&req,
     std::unique_ptr<EncryptedRequest> &&tun_req)
     -> void {
 
@@ -180,7 +180,7 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_http_connect_to_server(
 auto snet::comm_stack::layers::http::LayerHttp::handle_http_data_to_server(
     std::string const &peer_ip,
     std::uint16_t peer_port,
-    std::unique_ptr<Layer1_HttpDataToServer> &&req,
+    std::unique_ptr<LayerHttp_HttpDataToServer> &&req,
     std::unique_ptr<EncryptedRequest> &&tun_req)
     -> void {
 
@@ -197,7 +197,7 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_http_data_to_server(
 auto snet::comm_stack::layers::http::LayerHttp::handle_http_data_to_client(
     std::string const &peer_ip,
     std::uint16_t peer_port,
-    std::unique_ptr<Layer1_HttpDataToClient> &&req,
+    std::unique_ptr<LayerHttp_HttpDataToClient> &&req,
     std::unique_ptr<EncryptedRequest> &&tun_req)
     -> void {
 
@@ -238,7 +238,7 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_data_exchange_as_client(
             // Determine the opposite socket to send the data to.
             if (sock == client_socket.fileno()) {
                 // Send the data to the communication stack.
-                auto request = std::make_unique<Layer1_HttpDataToServer>(client_socket.fileno(), data);
+                auto request = std::make_unique<LayerHttp_HttpDataToServer>(client_socket.fileno(), data);
                 m_l1->tunnel_application_data_forwards(layer_proto_name(), std::move(request));
                 m_logger->info(std::format("Sent {} HTTP bytes from client to routing entry point", data.size()));
             }
@@ -285,7 +285,7 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_data_exchange_as_server(
             // Determine the opposite socket to send the data to.
             if (sock == server_socket.fileno()) {
                 // Send the data to the communication stack.
-                auto request = std::make_unique<Layer1_HttpDataToClient>(client_socket_fd, data);
+                auto request = std::make_unique<LayerHttp_HttpDataToClient>(client_socket_fd, data);
                 const auto prev_conn = ConnectionCache::connections[prev_conn_tok].get();
                 m_l1->tunnel_application_data_backwards(layer_proto_name(), prev_conn, std::move(request));
                 m_logger->info(std::format("Sent {} HTTP bytes from server to client's routing exit point", data.size()));
