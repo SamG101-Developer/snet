@@ -32,15 +32,15 @@ snet::nodes::Node::Node(
     m_comm_stack->setup_boostrap(std::make_unique<comm_stack::layers::LayerD>(
         m_node_info.get(), m_comm_stack->get_socket(), "", nullptr, m_comm_stack->get_layer_4()));
 
-    // Default enabled protocols.
-    m_comm_stack->get_layer_1()->register_protocol<comm_stack::layers::http::LayerHttp>();
-
     // Thread a call to the bootstrapper.
     std::jthread bootstrap([this] {
         m_comm_stack->get_layer_d()->request_bootstrap();
     });
 
-    if (utils::to_hex(m_node_info->hashed_username) == "cdd5a8e37ff76bd3ec78ef8238b699c31a3f22adc5f55278a07a9b7b389960dc") {
+    // Default enabled protocols.
+    const auto tester_node = utils::to_hex(m_node_info->hashed_username) == "cdd5a8e37ff76bd3ec78ef8238b699c31a3f22adc5f55278a07a9b7b389960dc";
+    m_comm_stack->get_layer_1()->register_protocol<comm_stack::layers::http::LayerHttp>(tester_node);
+    if (tester_node) {
         std::cout << "THIS NODE WILL TEST ROUTING" << std::endl;
         m_comm_stack->get_layer_2()->create_route();
     }

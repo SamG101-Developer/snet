@@ -53,8 +53,8 @@ export namespace snet::comm_stack::layers {
             std::unique_ptr<EncryptedRequest> &&tun_req)
             -> void override;
 
-        template <typename T>
-        auto register_protocol()
+        template <typename T, typename... Args>
+        auto register_protocol(Args &&... args)
             -> void;
 
         auto tunnel_application_data_forwards(
@@ -115,10 +115,11 @@ auto snet::comm_stack::layers::Layer1::handle_command(
 }
 
 
-template <typename T>
-auto snet::comm_stack::layers::Layer1::register_protocol()
+template <typename T, typename... Args>
+auto snet::comm_stack::layers::Layer1::register_protocol(
+    Args &&... args)
     -> void {
-    auto application_layer = std::make_unique<T>();
+    auto application_layer = std::make_unique<T>(std::forward<Args>(args)...);
     application_layer->initialize(m_logger, this, m_l2, m_l3, m_ld, m_l4);
     m_application_layers.emplace_back(std::move(application_layer));
 }
