@@ -5,6 +5,7 @@
 #include <QLabel>
 #include <QMouseEvent>
 #include <QMutex>
+#include <QPlainTextEdit>
 #include <QProcess>
 #include <QPushButton>
 #include <QScrollArea>
@@ -29,27 +30,25 @@ constexpr auto W = 6;
 constexpr auto H = 3;
 
 
-class LogMessageDisplay final : public QWidget {
+class LogMessageDisplay final : public QPlainTextEdit {
     Q_OBJECT
-    std::vector<std::string> m_messages;
 
 public:
     explicit LogMessageDisplay(QWidget *parent = nullptr) {
         setLayout(new QVBoxLayout());
         setFont(QFont("JetBrains Mono", 5));
         layout()->setAlignment(Qt::AlignTop);
+        document()->setMaximumBlockCount(10'000);
+        setReadOnly(true);
+        setTextInteractionFlags(Qt::NoTextInteraction);
     }
 
     auto add_new_log_message(std::string const &message) -> void {
-        m_messages.emplace_back(message);
-        const auto label = new QLabel(QString::fromStdString(m_messages.back()), this);
-        label->setWordWrap(true);
-        // label->setTextInteractionFlags(Qt::TextSelectableByMouse | Qt::TextSelectableByKeyboard);
-        layout()->addWidget(label);
+        appendPlainText(QString::fromStdString(message));
     }
 
-    auto nth_message(const std::size_t n) -> std::string const& {
-        return m_messages.at(n);
+    auto get_all_messages() const -> std::string {
+        return toPlainText().toStdString();
     }
 };
 
@@ -94,28 +93,21 @@ public:
         dialog->setFixedSize(800, 600);
         dialog->setWindowOpacity(0.9);
 
-        const auto scroller = new QScrollArea();
-        scroller->setWidgetResizable(true);
-        scroller->setWidget(new LogMessageDisplay());
-        scroller->widget()->setFont(QFont("JetBrains Mono", 10));
-
-        for (auto i = 0uz; i < log_display->layout()->count(); ++i) {
-            auto log_message = log_display->nth_message(i);
-            qobject_cast<LogMessageDisplay*>(scroller->widget())->add_new_log_message(log_message);
-        }
-        scroller->verticalScrollBar()->setValue(scroller->verticalScrollBar()->maximum());
+        const auto log_viewer = new QPlainTextEdit();
+        log_viewer->setReadOnly(true);
+        log_viewer->setFont(QFont("JetBrains Mono", 10));
+        log_viewer->setPlainText(log_display->toPlainText());
+        log_viewer->moveCursor(QTextCursor::End);
+        log_viewer->setTextInteractionFlags(Qt::NoTextInteraction);
 
         const auto save_to_file_button = new QPushButton("Save to file");
         connect(save_to_file_button, &QPushButton::clicked, this, [this] {
             const auto filename = "node_" + std::to_string(node_id) + "_logs.txt";
-            auto file_content = std::string();
-            for (auto i = 0uz; i < log_display->layout()->count(); ++i) {
-                file_content += log_display->nth_message(i) + "\n";
-            }
+            const auto file_content = log_display->get_all_messages();
             snet::utils::write_file(std::filesystem::path("../../logs") / filename, file_content);
         });
 
-        dialog->layout()->addWidget(scroller);
+        dialog->layout()->addWidget(log_viewer);
         dialog->layout()->addWidget(save_to_file_button);
         dialog->show();
     }
