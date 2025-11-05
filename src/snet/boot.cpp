@@ -29,8 +29,8 @@ auto snet::boot::boot_serex() -> void {
     serex::register_polymorphic_type<comm_stack::Layer2_TunnelJoinReject>("snet.comm_stack.layers.Layer2_TunnelJoinReject");
     serex::register_polymorphic_type<comm_stack::Layer2_TunnelDataForward>("snet.comm_stack.layers.Layer2_TunnelDataForward");
     serex::register_polymorphic_type<comm_stack::Layer2_TunnelDataBackward>("snet.comm_stack.layers.Layer2_TunnelDataBackward");
-    serex::register_polymorphic_type<comm_stack::Layer1_ApplicationLayerRequest>("snet.comm_stack.Layer1_ApplicationLayerRequest");
-    serex::register_polymorphic_type<comm_stack::Layer1_ApplicationLayerResponse>("snet.comm_stack.Layer1_ApplicationLayerResponse");
+    serex::register_polymorphic_type<comm_stack::Layer1_ApplicationLayerRequest>("snet.comm_stack.layers.Layer1_ApplicationLayerRequest");
+    serex::register_polymorphic_type<comm_stack::Layer1_ApplicationLayerResponse>("snet.comm_stack.layers.Layer1_ApplicationLayerResponse");
 
     serex::register_polymorphic_type<comm_stack::layers::http::LayerHttp_HttpConnectToServer>("snet.comm_stack.layers.LayerHttp_HttpConnectToServer");
     serex::register_polymorphic_type<comm_stack::layers::http::LayerHttp_HttpDataToClient>("snet.comm_stack.layers.LayerHttp_HttpDataToClient");

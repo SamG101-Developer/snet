@@ -167,7 +167,7 @@ auto snet::comm_stack::layers::Layer1::handle_application_layer_request(
 
 auto snet::comm_stack::layers::Layer1::handle_application_layer_response(
     std::string const &peer_ip,
-    std::uint16_t peer_port,
+    const std::uint16_t peer_port,
     std::unique_ptr<Layer1_ApplicationLayerResponse> &&req,
     std::unique_ptr<EncryptedRequest> &&tun_req)
     -> void {
