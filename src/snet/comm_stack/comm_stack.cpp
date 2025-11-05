@@ -178,6 +178,9 @@ auto snet::comm_stack::CommStack::listen() const
         MASTER_HANDLER(Layer4_ConnectionAck, m_l4);
         MASTER_HANDLER(Layer4_ConnectionClose, m_l4);
 
+        MASTER_HANDLER(LayerD_BootstrapRequest, m_ld);
+        MASTER_HANDLER(LayerD_BootstrapResponse, m_ld);
+
         MASTER_HANDLER(Layer2_RouteExtensionRequest, m_l2, tunnel_response);
         MASTER_HANDLER(Layer2_TunnelJoinRequest, m_l2);
         MASTER_HANDLER(Layer2_TunnelJoinReject, m_l2);
@@ -185,7 +188,7 @@ auto snet::comm_stack::CommStack::listen() const
         MASTER_HANDLER(Layer2_TunnelDataForward, m_l2, tunnel_response);
         MASTER_HANDLER(Layer2_TunnelDataBackward, m_l2);
 
-        MASTER_HANDLER(LayerD_BootstrapRequest, m_ld);
-        MASTER_HANDLER(LayerD_BootstrapResponse, m_ld);
+        MASTER_HANDLER(Layer1_ApplicationLayerRequest, m_l1, tunnel_response);
+        MASTER_HANDLER(Layer1_ApplicationLayerResponse, m_l1, tunnel_response);
     }
 }
