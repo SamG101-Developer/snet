@@ -2,7 +2,7 @@ export module snet.nodes.node;
 import std;
 
 import snet.comm_stack.comm_stack;
-import snet.comm_stack.layers.layer_d;
+import snet.comm_stack.system_layers.layer_d;
 import snet.crypt.bytes;
 import snet.manager.key_manager;
 import snet.nodes.abstract_node;

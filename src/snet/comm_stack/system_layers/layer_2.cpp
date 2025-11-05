@@ -5,16 +5,20 @@ module;
 #include <genex/actions/remove_if.hpp>
 #include <genex/actions/shuffle.hpp>
 #include <genex/views/materialize.hpp>
-#include <genex/views/map.hpp>
 #include <genex/views/ptr.hpp>
 #include <genex/views/reverse.hpp>
 
-export module snet.comm_stack.layers.layer_2;
+export module snet.comm_stack.system_layers.layer_2;
 import serex.serialize;
 import spdlog;
 import std;
 
-import snet.comm_stack.layers.layer_n;
+import snet.comm_stack.connection;
+import snet.comm_stack.request;
+import snet.comm_stack.system_layers.layer_3;
+import snet.comm_stack.system_layers.layer_d;
+import snet.comm_stack.system_layers.layer_4;
+import snet.comm_stack.system_layers.system_layer_base;
 import snet.credentials.key_store_data;
 import snet.crypt.asymmetric;
 import snet.crypt.bytes;
@@ -23,11 +27,6 @@ import snet.crypt.hash;
 import snet.crypt.random;
 import snet.crypt.symmetric;
 import snet.crypt.timestamp;
-import snet.comm_stack.connection;
-import snet.comm_stack.request;
-import snet.comm_stack.layers.layer_3;
-import snet.comm_stack.layers.layer_d;
-import snet.comm_stack.layers.layer_4;
 import snet.net.socket;
 import snet.utils.encoding;
 import snet.utils.logging;
@@ -44,7 +43,7 @@ export namespace snet::comm_stack::layers {
         bool ready = false;
     };
 
-    class Layer2 final : LayerN {
+    class Layer2 final : SystemLayerBase {
         std::unique_ptr<Route> m_route;
         std::map<crypt::bytes::RawBytes, crypt::bytes::RawBytes> m_route_forward_token_map;
         std::map<crypt::bytes::RawBytes, crypt::bytes::RawBytes> m_route_reverse_token_map;
@@ -58,10 +57,14 @@ export namespace snet::comm_stack::layers {
     public:
         Layer2(
             credentials::KeyStoreData *self_node_info,
-            net::Socket *sock,
+            net::UDPSocket *sock,
             Layer3 *l3,
             LayerD *ld,
             Layer4 *l4);
+
+        auto layer_proto_name() -> std::string override {
+            return "Layer2";
+        }
 
         auto create_route()
             -> void;
@@ -76,6 +79,17 @@ export namespace snet::comm_stack::layers {
             std::uint16_t peer_port,
             std::unique_ptr<RawRequest> &&req,
             std::unique_ptr<EncryptedRequest> &&tun_req = nullptr)
+            -> void override;
+
+        auto send_tunnel_forward(
+            std::unique_ptr<RawRequest> &&req,
+            std::size_t hops = HOP_COUNT + 1,
+            bool for_route_setup = false) const
+            -> void;
+
+        auto send_tunnel_backward(
+            Connection *prev_conn,
+            std::unique_ptr<RawRequest> &&req) const
             -> void;
 
     private:
@@ -116,33 +130,20 @@ export namespace snet::comm_stack::layers {
             std::uint16_t peer_port,
             std::unique_ptr<Layer2_TunnelDataBackward> &&req)
             -> void;
-
-        auto send_tunnel_forward(
-            std::unique_ptr<RawRequest> &&req,
-            std::size_t hops = HOP_COUNT + 1,
-            bool for_route_setup = false) const
-            -> void;
-
-        auto send_tunnel_backward(
-            Connection *prev_conn,
-            std::unique_ptr<RawRequest> &&req) const
-            -> void;
     };
 }
 
 
 snet::comm_stack::layers::Layer2::Layer2(
     credentials::KeyStoreData *self_node_info,
-    net::Socket *sock,
+    net::UDPSocket *sock,
     Layer3 *l3,
     LayerD *ld,
     Layer4 *l4) :
-    LayerN(self_node_info, sock),
+    SystemLayerBase(self_node_info, sock, utils::create_logger(layer_proto_name())),
     m_l3(l3),
     m_ld(ld),
     m_l4(l4) {
-    m_logger = utils::create_logger("Layer2");
-    m_logger->info("Layer2 initialized");
 }
 
 
@@ -235,6 +236,64 @@ auto snet::comm_stack::layers::Layer2::handle_command(
 
     // If no handler matched, log a warning.
     m_logger->warn("Layer2 received invalid request");
+}
+
+
+auto snet::comm_stack::layers::Layer2::send_tunnel_forward(
+    std::unique_ptr<RawRequest> &&req,
+    std::size_t hops,
+    const bool for_route_setup) const
+    -> void {
+    // Wait for the route to be created to fix timing issues (only called from route owner).
+    // Todo: switch to an std::barrier
+    while (m_route == nullptr or (not for_route_setup and not m_route->ready)) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
+    // Get the list of nodes in reverse order.
+    const auto node_list = m_route->nodes
+        | genex::views::ptr
+        | genex::views::materialize
+        | genex::views::reverse
+        | genex::to<std::vector>();
+
+    // Create the packaged request for the target node.
+    attach_metadata(node_list.front(), req.get());
+    m_logger->info(std::format("Layer2 preparing tunnel forward request via {} hops", hops));
+    auto ct = crypt::symmetric::encrypt(*node_list.front()->e2e_key, utils::encode_string<true>(serex::save(req)));
+    auto enc_req = std::make_unique<EncryptedRequest>(utils::encode_string(serex::save(ct)));
+    attach_metadata(node_list.front(), enc_req.get());
+
+    // Layer the tunnel for subsequent nodes in the route in reverse order.
+    for (auto &&node : std::vector(node_list.begin() + 1, node_list.end())) {
+        auto wrapped_req = std::make_unique<Layer2_TunnelDataForward>(utils::encode_string(serex::save(enc_req)));
+        attach_metadata(node, wrapped_req.get());
+        ct = crypt::symmetric::encrypt(*node->e2e_key, utils::encode_string<true>(serex::save(wrapped_req)));
+        enc_req = std::make_unique<EncryptedRequest>(utils::encode_string(serex::save(ct)));
+        attach_metadata(node, enc_req.get());
+    }
+
+    // Send the request to the first node in the route.
+    m_logger->info("Layer2 sending tunnel forward request to first node in route");
+    send_secure(m_route->nodes.front().get(), std::move(enc_req));
+}
+
+
+auto snet::comm_stack::layers::Layer2::send_tunnel_backward(
+    Connection *prev_conn,
+    std::unique_ptr<RawRequest> &&req) const
+    -> void {
+    // Encrypt and send the request to the previous node in the route.
+    attach_metadata(prev_conn, req.get());
+    auto ct = crypt::symmetric::encrypt(
+        m_participating_route_keys.at(prev_conn->conn_tok), utils::encode_string<true>(serex::save(req)));
+    auto enc_req = std::make_unique<EncryptedRequest>(utils::encode_string(serex::save(ct)));
+    attach_metadata(prev_conn, enc_req.get());
+
+    // Wrap the encrypted request in a Layer2_TunnelDataBackward and send it.
+    auto wrapped_req = std::make_unique<Layer2_TunnelDataBackward>(
+        utils::encode_string(serex::save(enc_req)));
+    send_secure(prev_conn, std::move(wrapped_req));
 }
 
 
@@ -439,62 +498,4 @@ auto snet::comm_stack::layers::Layer2::handle_tunnel_data_backward(
             send_secure(m_self_conn, std::move(cast_req));
         }
     }
-}
-
-
-auto snet::comm_stack::layers::Layer2::send_tunnel_forward(
-    std::unique_ptr<RawRequest> &&req,
-    std::size_t hops,
-    const bool for_route_setup) const
-    -> void {
-    // Wait for the route to be created to fix timing issues (only called from route owner).
-    // Todo: switch to an std::barrier
-    while (m_route == nullptr or (not for_route_setup and not m_route->ready)) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-
-    // Get the list of nodes in reverse order.
-    const auto node_list = m_route->nodes
-        | genex::views::ptr
-        | genex::views::materialize
-        | genex::views::reverse
-        | genex::to<std::vector>();
-
-    // Create the packaged request for the target node.
-    attach_metadata(node_list.front(), req.get());
-    m_logger->info(std::format("Layer2 preparing tunnel forward request via {} hops", hops));
-    auto ct = crypt::symmetric::encrypt(*node_list.front()->e2e_key, utils::encode_string<true>(serex::save(req)));
-    auto enc_req = std::make_unique<EncryptedRequest>(utils::encode_string(serex::save(ct)));
-    attach_metadata(node_list.front(), enc_req.get());
-
-    // Layer the tunnel for subsequent nodes in the route in reverse order.
-    for (auto &&node : std::vector(node_list.begin() + 1, node_list.end())) {
-        auto wrapped_req = std::make_unique<Layer2_TunnelDataForward>(utils::encode_string(serex::save(enc_req)));
-        attach_metadata(node, wrapped_req.get());
-        ct = crypt::symmetric::encrypt(*node->e2e_key, utils::encode_string<true>(serex::save(wrapped_req)));
-        enc_req = std::make_unique<EncryptedRequest>(utils::encode_string(serex::save(ct)));
-        attach_metadata(node, enc_req.get());
-    }
-
-    // Send the request to the first node in the route.
-    m_logger->info("Layer2 sending tunnel forward request to first node in route");
-    send_secure(m_route->nodes.front().get(), std::move(enc_req));
-}
-
-
-auto snet::comm_stack::layers::Layer2::send_tunnel_backward(
-    Connection *prev_conn,
-    std::unique_ptr<RawRequest> &&req) const
-    -> void {
-    // Encrypt and send the request to the previous node in the route.
-    attach_metadata(prev_conn, req.get());
-    auto ct = crypt::symmetric::encrypt(
-        m_participating_route_keys.at(prev_conn->conn_tok), utils::encode_string<true>(serex::save(req)));
-    auto enc_req = std::make_unique<EncryptedRequest>(utils::encode_string(serex::save(ct)));
-    attach_metadata(prev_conn, enc_req.get());
-
-    // Wrap the encrypted request in a Layer2_TunnelDataBackward and send it.
-    auto wrapped_req = std::make_unique<Layer2_TunnelDataBackward>(
-        utils::encode_string(serex::save(enc_req)));
-    send_secure(prev_conn, std::move(wrapped_req));
 }

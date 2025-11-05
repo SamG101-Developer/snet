@@ -8,10 +8,10 @@ import std;
 
 import snet.comm_stack.connection;
 import snet.comm_stack.request;
-import snet.comm_stack.layers.layer_2;
-import snet.comm_stack.layers.layer_3;
-import snet.comm_stack.layers.layer_4;
-import snet.comm_stack.layers.layer_d;
+import snet.comm_stack.system_layers.layer_2;
+import snet.comm_stack.system_layers.layer_3;
+import snet.comm_stack.system_layers.layer_4;
+import snet.comm_stack.system_layers.layer_d;
 import snet.credentials.key_store_data;
 import snet.crypt.bytes;
 import snet.crypt.symmetric;
@@ -27,7 +27,7 @@ export namespace snet::comm_stack {
         std::jthread m_listener_thread;
         credentials::KeyStoreData *m_info = nullptr;
 
-        std::unique_ptr<net::Socket> m_sock;
+        std::unique_ptr<net::UDPSocket> m_sock;
         std::unique_ptr<layers::Layer2> m_l2 = nullptr;
         std::unique_ptr<layers::Layer3> m_l3 = nullptr;
         std::unique_ptr<layers::Layer4> m_l4 = nullptr;
@@ -37,7 +37,7 @@ export namespace snet::comm_stack {
         explicit CommStack(std::uint16_t port);
 
         [[nodiscard]]
-        auto get_socket() const -> net::Socket* {
+        auto get_socket() const -> net::UDPSocket* {
             return m_sock.get();
         }
 
@@ -81,7 +81,7 @@ snet::comm_stack::CommStack::CommStack(
     const std::uint16_t port) :
     m_port(port),
     m_logger(utils::create_logger("CommStack")),
-    m_sock(std::make_unique<net::Socket>()) {
+    m_sock(std::make_unique<net::UDPSocket>()) {
     // Setup the socket.
     m_sock->bind(m_port);
     m_logger->info(std::format("CommStack initialized on port {}", m_port));

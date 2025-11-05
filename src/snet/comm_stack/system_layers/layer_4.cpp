@@ -4,13 +4,13 @@ module;
 #include <genex/to_container.hpp>
 #include <genex/views/take_last.hpp>
 
-export module snet.comm_stack.layers.layer_4;
+export module snet.comm_stack.system_layers.layer_4;
 import openssl;
 import serex.serialize;
 import spdlog;
 import std;
 
-import snet.comm_stack.layers.layer_n;
+import snet.comm_stack.system_layers.system_layer_base;
 import snet.credentials.key_store_data;
 import snet.crypt.asymmetric;
 import snet.crypt.bytes;
@@ -26,7 +26,7 @@ import snet.utils.logging;
 
 
 export namespace snet::comm_stack::layers {
-    class Layer4 final : LayerN {
+    class Layer4 final : SystemLayerBase {
         crypt::bytes::RawBytes m_self_id;
         openssl::EVP_PKEY *m_static_skey;
         crypt::bytes::RawBytes m_self_cert;
@@ -37,7 +37,11 @@ export namespace snet::comm_stack::layers {
     public:
         Layer4(
             credentials::KeyStoreData *self_node_info,
-            net::Socket *sock);
+            net::UDPSocket *sock);
+
+        auto layer_proto_name() -> std::string override {
+            return "Layer4";
+        }
 
         auto connect(
             std::string const &peer_ip,
@@ -49,8 +53,9 @@ export namespace snet::comm_stack::layers {
         auto handle_command(
             std::string const &peer_ip,
             std::uint16_t peer_port,
-            std::unique_ptr<RawRequest> &&req)
-            -> void;
+            std::unique_ptr<RawRequest> &&req,
+            std::unique_ptr<EncryptedRequest> &&tun_req = nullptr)
+            -> void override;
 
     private:
         auto handle_connection_request(
@@ -82,12 +87,10 @@ export namespace snet::comm_stack::layers {
 
 snet::comm_stack::layers::Layer4::Layer4(
     credentials::KeyStoreData *self_node_info,
-    net::Socket *sock) :
-    LayerN(self_node_info, sock),
+    net::UDPSocket *sock) :
+    SystemLayerBase(self_node_info, sock, utils::create_logger(layer_proto_name())),
     m_static_skey(crypt::asymmetric::load_private_key_sig(self_node_info->secret_key)),
     m_self_cert(self_node_info->certificate) {
-    m_logger = utils::create_logger("Layer4");
-    m_logger->info("Layer4 initialized");
 }
 
 
@@ -133,7 +136,8 @@ auto snet::comm_stack::layers::Layer4::connect(
 auto snet::comm_stack::layers::Layer4::handle_command(
     std::string const &peer_ip,
     std::uint16_t peer_port,
-    std::unique_ptr<RawRequest> &&req)
+    std::unique_ptr<RawRequest> &&req,
+    std::unique_ptr<EncryptedRequest> &&)
     -> void {
     m_logger->info("Layer4 received request of type " + req->serex_type() + " from" + FORMAT_PEER_INFO());
 

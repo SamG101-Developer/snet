@@ -4,18 +4,18 @@ module;
 #include <genex/actions/remove_if.hpp>
 #include <genex/algorithms/contains.hpp>
 
-export module snet.comm_stack.layers.layer_d;
+export module snet.comm_stack.system_layers.layer_d;
 import json;
 import openssl;
 import spdlog;
 import serex.serialize;
 import std;
 
-import snet.constants;
 import snet.comm_stack.connection;
-import snet.comm_stack.layers.layer_n;
-import snet.comm_stack.layers.layer_4;
 import snet.comm_stack.request;
+import snet.comm_stack.system_layers.system_layer_base;
+import snet.comm_stack.system_layers.layer_4;
+import snet.constants;
 import snet.credentials.key_store_data;
 import snet.crypt.asymmetric;
 import snet.crypt.bytes;
@@ -27,22 +27,26 @@ import snet.utils.logging;
 
 
 export namespace snet::comm_stack::layers {
-    class LayerD final : LayerN {
+    class LayerD final : SystemLayerBase {
         crypt::bytes::RawBytes m_self_id;
         crypt::bytes::RawBytes m_self_cert;
         bool m_is_directory_service;
         openssl::EVP_PKEY *m_directory_service_ssk;
         std::map<std::tuple<std::string, std::uint16_t>, openssl::EVP_PKEY*> m_directory_service_temp_map = {};
         std::string m_node_cache_file_path;
-        Layer4 *m_l4;
+        Layer4 *m_l4 = nullptr;
 
     public:
         LayerD(
             credentials::KeyStoreData *self_node_info,
-            net::Socket *sock,
+            net::UDPSocket *sock,
             std::string const &directory_service_name,
             openssl::EVP_PKEY *directory_service_ssk,
             Layer4 *l4);
+
+        auto layer_proto_name() -> std::string override {
+            return "LayerD";
+        }
 
         auto request_bootstrap()
             -> void;
@@ -50,7 +54,8 @@ export namespace snet::comm_stack::layers {
         auto handle_command(
             std::string const &peer_ip,
             std::uint16_t peer_port,
-            std::unique_ptr<RawRequest> &&req)
+            std::unique_ptr<RawRequest> &&req,
+            std::unique_ptr<EncryptedRequest> &&tun_req = nullptr)
             -> void;
 
     private:
@@ -74,11 +79,11 @@ export namespace snet::comm_stack::layers {
 
 snet::comm_stack::layers::LayerD::LayerD(
     credentials::KeyStoreData *self_node_info,
-    net::Socket *sock,
+    net::UDPSocket *sock,
     std::string const &directory_service_name,
     openssl::EVP_PKEY *directory_service_ssk,
     Layer4 *l4) :
-    LayerN(self_node_info, sock),
+    SystemLayerBase(self_node_info, sock, utils::create_logger(layer_proto_name())),
     m_self_id(self_node_info->identifier),
     m_self_cert(self_node_info->certificate),
     m_is_directory_service(not directory_service_name.empty()),
@@ -87,8 +92,6 @@ snet::comm_stack::layers::LayerD::LayerD(
 
     // Set the cache path and load the cache.
     const auto self_id_as_str = utils::to_hex(m_self_node_info->hashed_username);
-    m_logger = utils::create_logger("LayerD");
-    m_logger->info("LayerD initialized");
     m_node_cache_file_path = m_is_directory_service
                                  ? constants::DIRECTORY_SERVICE_NODE_CACHE_DIR / (directory_service_name + ".json")
                                  : constants::PROFILE_CACHE_DIR / (utils::to_hex(m_self_node_info->hashed_username) + ".json");
@@ -127,7 +130,8 @@ auto snet::comm_stack::layers::LayerD::request_bootstrap()
 auto snet::comm_stack::layers::LayerD::handle_command(
     std::string const &peer_ip,
     std::uint16_t peer_port,
-    std::unique_ptr<RawRequest> &&req)
+    std::unique_ptr<RawRequest> &&req,
+    std::unique_ptr<EncryptedRequest> &&)
     -> void {
     m_logger->info(std::format(
         "LayerD received request of type {} from {}@{}:{}",
@@ -179,7 +183,7 @@ auto snet::comm_stack::layers::LayerD::handle_bootstrap_request(
     auto sampled_nodes = decltype(ConnectionCache::cached_nodes)(sample_size);
     std::ranges::sample(
         ConnectionCache::cached_nodes, std::back_inserter(sampled_nodes),
-        sample_size, std::mt19937{std::random_device{}()});
+        static_cast<std::int64_t>(sample_size), std::mt19937{std::random_device{}()});
 
     // Todo: why is a bugged entry in the cache?
     // Todo: temp patch: remove all entries with port=0

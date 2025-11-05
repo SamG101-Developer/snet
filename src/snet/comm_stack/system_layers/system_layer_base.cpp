@@ -1,11 +1,9 @@
-module;
-#include <snet/macros.hpp>
-
-export module snet.comm_stack.layers.layer_n;
+export module snet.comm_stack.system_layers.system_layer_base;
 import spdlog;
 import serex.serialize;
 import std;
 
+import snet.comm_stack.layer_base;
 import snet.comm_stack.connection;
 import snet.comm_stack.request;
 import snet.credentials.key_store_data;
@@ -16,18 +14,28 @@ import snet.utils.logging;
 
 
 export namespace snet::comm_stack::layers {
-    class LayerN {
+    class SystemLayerBase : public LayerBase {
     protected:
         credentials::KeyStoreData *m_self_node_info = nullptr;
-        net::Socket *m_sock;
-        std::shared_ptr<spdlog::logger> m_logger;
+        net::UDPSocket *m_sock;
 
     public:
-        LayerN(
+        SystemLayerBase(
             credentials::KeyStoreData *self_node_info,
-            net::Socket *sock);
+            net::UDPSocket *sock,
+            std::shared_ptr<spdlog::logger> logger);
 
-        virtual ~LayerN() = default;
+        ~SystemLayerBase() override = default;
+
+        virtual auto send(
+            Connection *conn,
+            std::unique_ptr<RawRequest> &&req) const
+            -> void final;
+
+        virtual auto send_secure(
+            Connection *conn,
+            std::unique_ptr<RawRequest> &&req) const
+            -> void final;
 
     protected:
         template <typename T>
@@ -35,39 +43,22 @@ export namespace snet::comm_stack::layers {
             const Connection *conn,
             T *req) const
             -> void;
-
-        auto send(
-            Connection *conn,
-            std::unique_ptr<RawRequest> &&req) const
-            -> void;
-
-        auto send_secure(
-            Connection *conn,
-            std::unique_ptr<RawRequest> &&req) const
-            -> void;
     };
 }
 
 
-snet::comm_stack::layers::LayerN::LayerN(
+snet::comm_stack::layers::SystemLayerBase::SystemLayerBase(
     credentials::KeyStoreData *self_node_info,
-    net::Socket *sock) :
+    net::UDPSocket *sock,
+    std::shared_ptr<spdlog::logger> logger) :
+    LayerBase(std::move(logger)),
     m_self_node_info(self_node_info),
-    m_sock(sock),
-    m_logger(spdlog::default_logger()) {
+    m_sock(sock) {
+    m_logger->info(std::format("{} initialized", m_logger->name()));
 }
 
 
-template <typename T>
-auto snet::comm_stack::layers::LayerN::attach_metadata(
-    const Connection *conn,
-    T *req) const
-    -> void {
-    req->conn_tok = conn->conn_tok;
-}
-
-
-auto snet::comm_stack::layers::LayerN::send(
+auto snet::comm_stack::layers::SystemLayerBase::send(
     Connection *conn,
     std::unique_ptr<RawRequest> &&req) const
     -> void {
@@ -80,7 +71,7 @@ auto snet::comm_stack::layers::LayerN::send(
 }
 
 
-auto snet::comm_stack::layers::LayerN::send_secure(
+auto snet::comm_stack::layers::SystemLayerBase::send_secure(
     Connection *conn,
     std::unique_ptr<RawRequest> &&req) const
     -> void {
@@ -98,4 +89,13 @@ auto snet::comm_stack::layers::LayerN::send_secure(
         *ConnectionCache::connections[conn->conn_tok]->e2e_key, req_serialized);
     auto enc_req = std::make_unique<EncryptedRequest>(utils::encode_string(serex::save(ct)));
     send(conn, std::move(enc_req));
+}
+
+
+template <typename T>
+auto snet::comm_stack::layers::SystemLayerBase::attach_metadata(
+    const Connection *conn,
+    T *req) const
+    -> void {
+    req->conn_tok = conn->conn_tok;
 }

@@ -194,7 +194,7 @@ export namespace snet::comm_stack {
         crypt::bytes::RawBytes route_tok;
         crypt::bytes::RawBytes route_owner_epk;
         std::string next_node_ip;
-        std::uint16_t next_node_port;
+        std::uint16_t next_node_port = 0;
         crypt::bytes::RawBytes next_node_id;
 
         Layer2_RouteExtensionRequest() = default;
@@ -202,12 +202,12 @@ export namespace snet::comm_stack {
         explicit Layer2_RouteExtensionRequest(
             crypt::bytes::RawBytes route_tok,
             crypt::bytes::RawBytes route_owner_epk,
-            std::string const &next_node_ip,
+            std::string next_node_ip,
             const std::uint16_t next_node_port,
             crypt::bytes::RawBytes next_node_id) :
             route_tok(std::move(route_tok)),
             route_owner_epk(std::move(route_owner_epk)),
-            next_node_ip(next_node_ip),
+            next_node_ip(std::move(next_node_ip)),
             next_node_port(next_node_port),
             next_node_id(std::move(next_node_id)) {
         }
@@ -334,6 +334,52 @@ export namespace snet::comm_stack {
         auto serialize(serex::Archive &ar) -> void override {
             RawRequest::serialize(ar);
             serex::push_into_archive(ar, data);
+        }
+    };
+
+    struct Layer1_ApplicationLayerRequest final : RawRequest {
+        crypt::bytes::RawBytes proto_name;
+        crypt::bytes::RawBytes req_serialized;
+
+        Layer1_ApplicationLayerRequest() = default;
+
+        explicit Layer1_ApplicationLayerRequest(
+            crypt::bytes::RawBytes proto_name,
+            crypt::bytes::RawBytes req_serialized) :
+            proto_name(std::move(proto_name)),
+            req_serialized(std::move(req_serialized)) {
+        }
+
+        auto serex_type() -> std::string override {
+            return "snet.comm_stack.layers.Layer1_ApplicationLayerRequest";
+        }
+
+        auto serialize(serex::Archive &ar) -> void override {
+            RawRequest::serialize(ar);
+            serex::push_into_archive(ar, proto_name, req_serialized);
+        }
+    };
+
+    struct Layer1_ApplicationLayerResponse final : RawRequest {
+        crypt::bytes::RawBytes proto_name;
+        crypt::bytes::RawBytes resp_serialized;
+
+        Layer1_ApplicationLayerResponse() = default;
+
+        explicit Layer1_ApplicationLayerResponse(
+            crypt::bytes::RawBytes proto_name,
+            crypt::bytes::RawBytes resp_serialized) :
+            proto_name(std::move(proto_name)),
+            resp_serialized(std::move(resp_serialized)) {
+        }
+
+        auto serex_type() -> std::string override {
+            return "snet.comm_stack.layers.Layer1_ApplicationLayerResponse";
+        }
+
+        auto serialize(serex::Archive &ar) -> void override {
+            RawRequest::serialize(ar);
+            serex::push_into_archive(ar, proto_name, resp_serialized);
         }
     };
 }
