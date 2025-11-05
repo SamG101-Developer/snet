@@ -80,7 +80,7 @@ export namespace snet::comm_stack::layers::http {
             net::TCPSocket &&server_socket,
             SelectableBytesIO &routing_exit_point,
             sys::socket_t client_socket_fd,
-            crypt::bytes::RawBytes prev_conn_tok)
+            crypt::bytes::RawBytes const &prev_conn_tok)
             -> void;
     };
 }
@@ -260,7 +260,7 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_data_exchange_as_server(
     net::TCPSocket &&server_socket,
     SelectableBytesIO &routing_exit_point,
     sys::socket_t client_socket_fd,
-    crypt::bytes::RawBytes prev_conn_tok)
+    crypt::bytes::RawBytes const &prev_conn_tok)
     -> void {
     // Create a socket pair to communicate with the routing exit point.
     const auto sockets = std::vector{server_socket.fileno(), routing_exit_point.fileno()};

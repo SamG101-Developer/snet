@@ -490,7 +490,6 @@ auto snet::comm_stack::layers::Layer2::handle_tunnel_data_backward(
         auto inner_req = serex::load<RawRequest*>(utils::decode_bytes(plaintext));
         if (serex::poly_non_owning_cast<Layer2_TunnelDataBackward>(inner_req) != nullptr) {
             req = serex::poly_owning_cast<Layer2_TunnelDataBackward>(std::move(inner_req));
-            continue;
         }
         else {
             auto cast_req = serex::poly_owning_cast<RawRequest>(std::move(inner_req));
