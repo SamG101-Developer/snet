@@ -41,7 +41,7 @@ export namespace snet::net {
     class TCPSocket : public Socket {
     public:
         explicit TCPSocket(sys::socket_t fd = -1);
-        auto connect(std::string const &ip, std::uint16_t port) const -> void;
+        auto connect(std::string const &ip, std::uint16_t port) const -> bool;
         auto listen(std::int32_t backlog = 5) const -> void;
         [[nodiscard]] auto accept() const -> TCPSocket;
         auto send(std::span<std::uint8_t> data) const -> void;
@@ -231,20 +231,27 @@ snet::net::TCPSocket::TCPSocket(
 auto snet::net::TCPSocket::connect(
     const std::string &ip,
     const std::uint16_t port) const
-    -> void {
-    // Create the address structure for IPv4.
-    auto addr = sys::sockaddr_in{};
-    std::memset(&addr, 0, sizeof(addr));
-    addr.sin_family = sys::AF_INET;
-    addr.sin_port = sys::htons(port);
-    if (sys::inet_pton(sys::AF_INET, ip.c_str(), &addr.sin_addr) <= 0) {
-        throw std::system_error(errno, std::system_category(), "Invalid IP address: " + ip);
+    -> bool {
+    // Create the address structure for IPv4 and resolve hostname.
+    struct sys::addrinfo hints{};
+    struct sys::addrinfo *res;
+    hints.ai_family = sys::AF_INET;
+    hints.ai_socktype = sys::SOCK_STREAM;
+
+    const auto port_str = std::to_string(port);
+    if (sys::getaddrinfo(ip.c_str(), port_str.c_str(), &hints, &res) != 0) {
+        // throw std::system_error(errno, std::system_category(), "Failed to resolve hostname: " + ip);
+        return false;
     }
 
     // Connect to the server.
-    if (sys::connect(socket_fd, reinterpret_cast<sys::sockaddr*>(&addr), sizeof(addr)) < 0) {
-        throw std::system_error(errno, std::system_category(), "Failed to connect to " + ip + ":" + std::to_string(port));
+    if (sys::connect(socket_fd, res->ai_addr, res->ai_addrlen) < 0) {
+        sys::freeaddrinfo(res);
+        // throw std::system_error(errno, std::system_category(), "Failed to connect to " + ip + ":" + std::to_string(port));
+        return false;
     }
+    sys::freeaddrinfo(res);
+    return true;
 }
 
 
