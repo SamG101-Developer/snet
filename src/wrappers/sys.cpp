@@ -5,6 +5,7 @@ module;
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #else
+#include <netdb.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/file.h>
@@ -28,6 +29,7 @@ export namespace sys {
     using ::sockaddr_in;
     using ::sockaddr;
     using ::ssize_t;
+    using ::addrinfo;
 
     using ::socket;
     using ::close;
@@ -46,6 +48,9 @@ export namespace sys {
     using ::inet_pton;
     using ::inet_ntop;
     using ::ntohs;
+
+    using ::getaddrinfo;
+    using ::freeaddrinfo;
 
 #undef AF_INET
     constexpr auto AF_INET = PF_INET;
