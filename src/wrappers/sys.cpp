@@ -28,6 +28,7 @@ export namespace sys {
     using ::sockaddr_in;
     using ::sockaddr;
     using ::ssize_t;
+
     using ::socket;
     using ::close;
     using ::bind;
@@ -35,13 +36,16 @@ export namespace sys {
     using ::listen;
     using ::accept;
     using ::sendto;
+    using ::send;
     using ::recvfrom;
+    using ::recv;
     using ::setsockopt;
+    using ::socketpair;
+
     using ::htons;
     using ::inet_pton;
     using ::inet_ntop;
     using ::ntohs;
-    using ::socketpair;
 
 #undef AF_INET
     constexpr auto AF_INET = PF_INET;
