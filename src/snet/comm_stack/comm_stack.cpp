@@ -8,6 +8,7 @@ import std;
 
 import snet.comm_stack.connection;
 import snet.comm_stack.request;
+import snet.comm_stack.system_layers.layer_1;
 import snet.comm_stack.system_layers.layer_2;
 import snet.comm_stack.system_layers.layer_3;
 import snet.comm_stack.system_layers.layer_4;
@@ -28,6 +29,7 @@ export namespace snet::comm_stack {
         credentials::KeyStoreData *m_info = nullptr;
 
         std::unique_ptr<net::UDPSocket> m_sock;
+        std::unique_ptr<layers::Layer1> m_l1 = nullptr;
         std::unique_ptr<layers::Layer2> m_l2 = nullptr;
         std::unique_ptr<layers::Layer3> m_l3 = nullptr;
         std::unique_ptr<layers::Layer4> m_l4 = nullptr;
@@ -42,8 +44,18 @@ export namespace snet::comm_stack {
         }
 
         [[nodiscard]]
+        auto get_layer_1() const -> layers::Layer1* {
+            return m_l1.get();
+        }
+
+        [[nodiscard]]
         auto get_layer_2() const -> layers::Layer2* {
             return m_l2.get();
+        }
+
+        [[nodiscard]]
+        auto get_layer_3() const -> layers::Layer3* {
+            return m_l3.get();
         }
 
         [[nodiscard]]
@@ -58,7 +70,7 @@ export namespace snet::comm_stack {
 
         [[nodiscard]]
         auto all_layers_ready() const -> bool {
-            return m_l2 != nullptr and m_l3 != nullptr and m_l4 != nullptr and m_ld != nullptr;
+            return m_l1 != nullptr and m_l2 != nullptr and m_l3 != nullptr and m_l4 != nullptr and m_ld != nullptr;
         }
 
         // Todo: change to recv the args here and construct ld in this class
@@ -82,6 +94,7 @@ snet::comm_stack::CommStack::CommStack(
     m_port(port),
     m_logger(utils::create_logger("CommStack")),
     m_sock(std::make_unique<net::UDPSocket>()) {
+
     // Setup the socket.
     m_sock->bind(m_port);
     m_logger->info(std::format("CommStack initialized on port {}", m_port));
@@ -96,6 +109,7 @@ auto snet::comm_stack::CommStack::setup_boostrap(
     -> void {
     m_ld = std::move(ld);
     m_l2 = std::make_unique<layers::Layer2>(m_info, m_sock.get(), m_l3.get(), m_ld.get(), m_l4.get());
+    m_l1 = std::make_unique<layers::Layer1>(m_info, m_sock.get(), m_l4.get(), m_l3.get(), m_ld.get(), m_l2.get());
 }
 
 

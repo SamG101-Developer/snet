@@ -8,6 +8,7 @@ import snet.manager.key_manager;
 import snet.nodes.abstract_node;
 
 import snet.utils.encoding;
+import snet.comm_stack.application_layers.http.layer_http;
 
 
 export namespace snet::nodes {
@@ -31,12 +32,14 @@ snet::nodes::Node::Node(
     m_comm_stack->setup_boostrap(std::make_unique<comm_stack::layers::LayerD>(
         m_node_info.get(), m_comm_stack->get_socket(), "", nullptr, m_comm_stack->get_layer_4()));
 
+    // Default enabled protocols.
+    m_comm_stack->get_layer_1()->register_protocol<comm_stack::layers::http::LayerHttp>();
+
     // Thread a call to the bootstrapper.
-    std::jthread([this] {
+    std::jthread bootstrap([this] {
         m_comm_stack->get_layer_d()->request_bootstrap();
     });
 
-    // Todo: request a tunnel for a testing node, enable http proxying etc.
     if (utils::to_hex(m_node_info->hashed_username) == "cdd5a8e37ff76bd3ec78ef8238b699c31a3f22adc5f55278a07a9b7b389960dc") {
         std::cout << "THIS NODE WILL TEST ROUTING" << std::endl;
         m_comm_stack->get_layer_2()->create_route();
