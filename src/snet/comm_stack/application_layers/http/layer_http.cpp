@@ -72,12 +72,12 @@ export namespace snet::comm_stack::layers::http {
             -> void;
 
         auto handle_data_exchange_as_client(
-            net::TCPSocket &client_socket,
+            net::TCPSocket &&client_socket,
             SelectableBytesIO &routing_entry_point)
             -> void;
 
         auto handle_data_exchange_as_server(
-            net::TCPSocket &server_socket,
+            net::TCPSocket &&server_socket,
             SelectableBytesIO &routing_exit_point,
             sys::socket_t client_socket_fd,
             crypt::bytes::RawBytes prev_conn_tok)
@@ -121,7 +121,7 @@ auto snet::comm_stack::layers::http::LayerHttp::start()
     -> void {
     while (true) {
         auto client_socket = m_proxy_socket.accept();
-        std::jthread([this, client_socket = std::move(client_socket)] mutable {
+        std::thread([this, client_socket = std::move(client_socket)] mutable {
             handle_proxy_request(std::move(client_socket));
         }).detach();
     }
@@ -132,7 +132,6 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_proxy_request(
     net::TCPSocket &&client_socket)
     -> void {
     // Get the CONNECT request from the client using the proxy.
-    using namespace std::string_literals;
     const auto request_data = client_socket.recv();
 
     // Determine the host from the HTTP headers (example: "google.com").
@@ -154,7 +153,7 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_proxy_request(
     client_socket.send(http_ok);
 
     // Start data exchange between the client and routing entry point.
-    handle_data_exchange_as_client(client_socket, routing_entry_point);
+    handle_data_exchange_as_client(std::move(client_socket), routing_entry_point);
 }
 
 
@@ -174,7 +173,7 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_http_connect_to_server(
     // Save the connection against the client socket identifier.
     m_received_data_at_server[req->client_socket_fd] = SelectableBytesIO();
     auto &routing_exit_point = m_received_data_at_server[req->client_socket_fd];
-    handle_data_exchange_as_server(internet_sock, routing_exit_point, req->client_socket_fd, tun_req->conn_tok);
+    handle_data_exchange_as_server(std::move(internet_sock), routing_exit_point, req->client_socket_fd, tun_req->conn_tok);
 }
 
 
@@ -213,7 +212,7 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_http_data_to_client(
 
 
 auto snet::comm_stack::layers::http::LayerHttp::handle_data_exchange_as_client(
-    net::TCPSocket &client_socket,
+    net::TCPSocket &&client_socket,
     SelectableBytesIO &routing_entry_point)
     -> void {
     // Create a socket pair to communicate with the routing entry point.
@@ -258,7 +257,7 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_data_exchange_as_client(
 
 
 auto snet::comm_stack::layers::http::LayerHttp::handle_data_exchange_as_server(
-    net::TCPSocket &server_socket,
+    net::TCPSocket &&server_socket,
     SelectableBytesIO &routing_exit_point,
     sys::socket_t client_socket_fd,
     crypt::bytes::RawBytes prev_conn_tok)

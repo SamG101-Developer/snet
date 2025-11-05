@@ -17,7 +17,7 @@ export namespace snet::net {
             std::int32_t family = sys::AF_INET,
             std::int32_t type = sys::SOCK_DGRAM,
             std::int32_t protocol = sys::IPPROTO_UDP,
-            sys::socket_t fd = 0);
+            sys::socket_t fd = -1);
 
     public:
         Socket(const Socket &other) = delete;
@@ -33,14 +33,14 @@ export namespace snet::net {
 
     class UDPSocket : public Socket {
     public:
-        explicit UDPSocket(sys::socket_t fd = 0);
+        explicit UDPSocket(sys::socket_t fd = -1);
         auto send(std::span<std::uint8_t> data, std::string const &ip, std::uint16_t port) const -> void;
         [[nodiscard]] auto recv() const -> std::tuple<std::vector<std::uint8_t>, std::string, std::uint16_t>;
     };
 
     class TCPSocket : public Socket {
     public:
-        explicit TCPSocket(sys::socket_t fd = 0);
+        explicit TCPSocket(sys::socket_t fd = -1);
         auto connect(std::string const &ip, std::uint16_t port) const -> void;
         auto listen(std::int32_t backlog = 5) const -> void;
         [[nodiscard]] auto accept() const -> TCPSocket;
@@ -49,7 +49,7 @@ export namespace snet::net {
     };
 
     template <typename S>
-        requires std::derived_from<S, Socket>
+    requires std::derived_from<S, Socket>
     auto socket_pair() -> std::pair<S, S>;
 
     auto select(
@@ -68,11 +68,17 @@ snet::net::Socket::Socket(
     const sys::socket_t fd) :
     socket_fd(fd) {
 
-    socket_fd = sys::socket(family, type, protocol);
+    // Create a socket with a new descriptor if one is not provided.
+    if (socket_fd < 0) {
+        socket_fd = sys::socket(family, type, protocol);
+    }
+
+    // If socket creation failed, throw an error.
     if (socket_fd == static_cast<sys::socket_t>(-1)) {
         throw std::system_error(errno, std::system_category(), "Failed to create socket");
     }
 
+    // Set socket options standard for all sockets.
     constexpr auto opt = 1;
     if (sys::setsockopt(socket_fd, sys::SOL_SOCKET, sys::SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
         throw std::system_error(errno, std::system_category(), "Failed to set socket options");
@@ -84,7 +90,7 @@ snet::net::Socket::Socket(
     Socket &&other) noexcept {
     std::lock_guard lock(other.mtx);
     socket_fd = other.socket_fd;
-    other.socket_fd = 0;
+    other.socket_fd = -1;
 }
 
 
@@ -94,14 +100,14 @@ auto snet::net::Socket::operator=(
     if (this != &other) {
         std::scoped_lock lock(mtx, other.mtx);
         socket_fd = other.socket_fd;
-        other.socket_fd = 0;
+        other.socket_fd = -1;
     }
     return *this;
 }
 
 
 snet::net::Socket::~Socket() {
-    if (socket_fd != 0) {
+    if (socket_fd >= 0) {
         close();
     }
 }
@@ -124,11 +130,11 @@ auto snet::net::Socket::bind(
 
 
 auto snet::net::Socket::close() -> void {
-    if (socket_fd != 0) {
+    if (socket_fd >= 0) {
         if (sys::close(socket_fd) < 0) {
             throw std::system_error(errno, std::system_category(), "Failed to close socket");
         }
-        socket_fd = 0;
+        socket_fd = -1;
     }
 }
 
@@ -266,17 +272,11 @@ auto snet::net::TCPSocket::send(
     const std::span<std::uint8_t> data) const
     -> void {
     // Add a frame header specifying the length of the data (size_t, so 8 byte header).
-    const auto data_size = data.size();
-    auto buffer = std::vector<std::uint8_t>(sizeof(std::size_t) + data_size);
-    std::memcpy(buffer.data(), &data_size, sizeof(std::size_t));
-    std::memcpy(buffer.data() + sizeof(std::size_t), data.data(), data_size);
+    auto buffer = std::vector<std::uint8_t>(data.size());
+    std::memcpy(buffer.data(), data.data(), data.size());
 
     // Send the data.
-    const auto sent = sys::sendto(
-        socket_fd, buffer.data(), buffer.size(), 0,
-        nullptr, 0);
-
-    if (sent < 0 or sent != static_cast<sys::ssize_t>(buffer.size())) {
+    if (sys::send(socket_fd, buffer.data(), buffer.size(), 0) != static_cast<sys::ssize_t>(buffer.size())) {
         throw std::system_error(errno, std::system_category(), "Failed to send data");
     }
 }
@@ -284,34 +284,28 @@ auto snet::net::TCPSocket::send(
 
 auto snet::net::TCPSocket::recv() const
     -> std::vector<std::uint8_t> {
-    // Create a buffer to hold the received data.
-    auto header_buffer = std::vector<std::uint8_t>(65535);
-    const auto recv_len = sys::recvfrom(
-        socket_fd, header_buffer.data(), header_buffer.size(), 0,
-        nullptr, nullptr);
-
-    if (recv_len <= 0) {
-        throw std::system_error(errno, std::system_category(), "Failed to receive data");
+    // Keep receiving 4096 byte chunks until the end of the data is reached.
+    auto buffer = std::vector<std::uint8_t>();
+    auto temp_buffer = std::vector<std::uint8_t>(4096);
+    while (true) {
+        const auto recv_len = sys::recv(socket_fd, temp_buffer.data(), temp_buffer.size(), 0);
+        if (recv_len < 0) {
+            throw std::system_error(errno, std::system_category(), "Failed to receive data");
+        }
+        else if (recv_len == 0) {
+            break; // Connection closed
+        }
+        buffer.insert(buffer.end(), temp_buffer.begin(), temp_buffer.begin() + recv_len);
+        if (static_cast<std::size_t>(recv_len) < temp_buffer.size()) {
+            break; // No more data available
+        }
     }
-
-    if (static_cast<std::size_t>(recv_len) < sizeof(std::size_t)) {
-        throw std::runtime_error("Received data is smaller than header size");
-    }
-
-    // Extract the data length from the header.
-    auto data_size = 0uz;
-    std::memcpy(&data_size, header_buffer.data(), sizeof(std::size_t));
-    if (data_size + sizeof(std::size_t) != static_cast<std::size_t>(recv_len)) {
-        throw std::runtime_error("Received data size does not match header length");
-    }
-    auto payload = std::vector<std::uint8_t>(data_size);
-    std::memcpy(payload.data(), header_buffer.data() + sizeof(std::size_t), data_size);
-    return payload;
+    return buffer;
 }
 
 
 template <typename S>
-    requires std::derived_from<S, snet::net::Socket>
+requires std::derived_from<S, snet::net::Socket>
 auto snet::net::socket_pair() -> std::pair<S, S> {
     int sv[2];
     if (sys::socketpair(sys::AF_UNIX, sys::SOCK_STREAM, 0, sv) == -1) {
