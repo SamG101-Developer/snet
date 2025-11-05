@@ -168,7 +168,10 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_http_connect_to_server(
 
     // Create a connection to the web server over secure HTTP port 443.
     auto internet_sock = net::TCPSocket();
-    internet_sock.connect(req->server_host, HTTPS_PORT);
+    if (not internet_sock.connect(req->server_host, HTTPS_PORT)) {
+        m_logger->warn(std::format("Failed to connect to web server {}", req->server_host));
+        return;
+    }
 
     // Save the connection against the client socket identifier.
     m_received_data_at_server[req->client_socket_fd] = SelectableBytesIO();
