@@ -70,10 +70,12 @@ export namespace snet::comm_stack::layers::http {
                 | genex::views::filter([](auto const &line) { return genex::algorithms::contains(line, ':'); })
                 | genex::views::transform([](auto const &line) {
                     auto sub_parts = line | genex::views::split(':') | genex::to<std::vector>();
-                    return std::make_pair(sub_parts[0] | genex::to<std::string>(), sub_parts[1] | genex::to<std::string>());
+                    auto pair = std::make_pair(sub_parts[0] | genex::to<std::string>(), sub_parts[1] | genex::to<std::string>());
+                    std::get<1>(pair) = std::get<1>(pair).substr(1); // Remove leading space
+                    return pair;
                 })
                 | genex::to<std::vector>();
-            return std::map(hs_vec.begin(), hs_vec.end());
+            return {hs_vec.begin(), hs_vec.end()};
         }
     };
 }
