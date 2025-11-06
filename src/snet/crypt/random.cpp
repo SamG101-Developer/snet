@@ -18,4 +18,13 @@ export namespace snet::crypt::random {
         openssl::RAND_bytes(buffer.data(), static_cast<int>(len));
         return buffer;
     }
+
+    template <typename T>
+    requires std::integral<T>
+    auto random_integer() -> T {
+        // Generate a random 32-bit unsigned integer.
+        auto value = static_cast<T>(0);
+        openssl::RAND_bytes(reinterpret_cast<unsigned char*>(&value), sizeof(T));
+        return value;
+    }
 }
