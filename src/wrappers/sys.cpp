@@ -45,9 +45,10 @@ export namespace sys {
     using ::socketpair;
 
     using ::htons;
+    using ::ntohs;
     using ::inet_pton;
     using ::inet_ntop;
-    using ::ntohs;
+    using ::inet_ntoa;
 
     using ::getaddrinfo;
     using ::freeaddrinfo;
