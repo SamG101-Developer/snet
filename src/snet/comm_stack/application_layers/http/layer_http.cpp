@@ -136,6 +136,14 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_proxy_request(
 
     // Determine the host from the HTTP headers (example: "google.com").
     auto host = HttpParser(request_data).headers()["Host"];
+    const auto port_split_port = host.rfind(':');
+    auto port = HTTPS_PORT;
+    if (port_split_port != std::string::npos) {
+        host = host.substr(0, port_split_port);
+        port = static_cast<std::uint16_t>(std::stoi(host.substr(port_split_port + 1)));
+        port = port == 0 ? HTTPS_PORT : port;
+    }
+
     if (host.empty()) {
         client_socket.close();
         return;
@@ -143,7 +151,7 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_proxy_request(
 
     // Create the CONNECT request object and send it through the route.
     const auto client_socket_fd = client_socket.fileno();
-    auto http_conn_req = std::make_unique<LayerHttp_HttpConnectToServer>(client_socket_fd, std::move(host));
+    auto http_conn_req = std::make_unique<LayerHttp_HttpConnectToServer>(client_socket_fd, std::move(host), port);
     m_l1->tunnel_application_data_forwards(layer_proto_name(), std::move(http_conn_req));
 
     // Create the response selectable-object that is interacted with from Layer1.
@@ -164,12 +172,12 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_http_connect_to_server(
     std::unique_ptr<EncryptedRequest> &&tun_req)
     -> void {
 
-    m_logger->info(std::format("Handling HTTP CONNECT to server {}", req->server_host));
+    m_logger->info(std::format("Handling HTTP CONNECT to server {}:{}", req->server_host, req->server_port));
 
     // Create a connection to the web server over secure HTTP port 443.
     auto internet_sock = net::TCPSocket();
-    if (not internet_sock.connect(req->server_host, HTTPS_PORT)) {
-        m_logger->warn(std::format("Failed to connect to web server {}", req->server_host));
+    if (not internet_sock.connect(req->server_host, req->server_port)) {
+        m_logger->warn(std::format("Failed to connect to web server {}:{}", req->server_host, req->server_port));
         return;
     }
 
@@ -192,7 +200,7 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_http_data_to_server(
     while (not m_received_data_at_server.contains(req->client_socket_fd)) {}
 
     // Write the data to the correct buffer, that will be sent to the web server.
-    m_logger->info(std::format("Client ID exists => writing {} bytes to route exit buffer", req->data.size()));
+    m_logger->info(std::format("Client ID exists => writing {} bytes to server", req->data.size()));
     m_received_data_at_server[req->client_socket_fd].write(req->data);
 }
 
