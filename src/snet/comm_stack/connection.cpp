@@ -22,6 +22,7 @@ export namespace snet::comm_stack {
         ConnectionState state = ConnectionState::NOT_CONNECTED;
         openssl::EVP_PKEY *peer_epk;
         openssl::EVP_PKEY *self_esk;
+        openssl::X509 *peer_cert;
         std::optional<crypt::bytes::SecureBytes> e2e_key;
 
         [[nodiscard]]

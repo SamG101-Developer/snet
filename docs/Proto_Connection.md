@@ -16,7 +16,7 @@ is between two nodes only; **NodeA** and **NodeB**.
 
 1. **Node A**
     - **Node A** generates the ephemeral key pair `(ePKa, eSKa)`
-    - **Node A** generates the token `T = RNG(256) || TimeStamp`
+    - **Node A** generates the token `T = RNG(256 bits) || TimeStamp`
     - **Node A** creates a signature `S1 = SIGN(CertA || ePKa, aad=T || TimeStamp() || IdB)`
     - **Node A** sends `ConnectionRequest(T, CertA || ePKa, S1)` to **Node B**
     - **Node A** caches `T`
@@ -26,8 +26,7 @@ is between two nodes only; **NodeA** and **NodeB**.
     - **Node B** performs `VerifyNode(CertA, IdA, S1, S1-AAD)`
     - **Node B** checks the token timestamp is fresh
     - **Node B** checks `T'` isn't in the token cache, and caches `T'`
-    - **Node B** creates a random shared secret `S`
-    - **Node B** creates a KEM-wrapped key: `E = ENCAPS(S, ePKa)`
+    - **Node B** creates a KEM-wrapped key: `S, E = ENCAPS(ePKa)`
     - **Node B** creates a signature `S2 = SIGN(CertB || E, aad=T' || TimeStamp() || IdA)`
     - **Node B** sends `ConnectionAccept(T', CertB || E, S2)` to **Node A**
 
@@ -35,25 +34,25 @@ is between two nodes only; **NodeA** and **NodeB**.
 3. **Node A**, `ConnectionAccept(T', CertB || E, S2)`
     - **Node A** performs `VerifyNode(CertB, IdB, S2, S2-AAD)`
     - **Node A** computes `S = DECAPS(E, eSKa)`
-    - **Node A** computes `H = HASH(E)`
+    - **Node A** computes `H = HASH(E || T || CertA || CertB || ePKa)`
     - **Node A** creates a signature `S3 = SIGN(H, aad=T || TimeStamp() || IdB)`
     - **Node A** sends `ConnectionAcknowledgement(T, H, S3)` to **Node B**
 
 
 4. **Node B**, `ConnectionAcknowledgement(T', H', S3)`
     - **Node B** performs `VerifyNode(CertA, IdA, S3, S3-AAD)`
-    - **Node B** computes `H = HASH(E)`
+    - **Node B** computes `H = HASH(E || T || CertA || CertB || ePKa)`
     - **Node B** verifies `H == H'`
 
 
 5. **Encrypted, authenticated channel is active**
-    - **Node A** and **Node B** derive the encryption key `EK = KDF(S, "EncryptionKey")`
+    - **Node A** and **Node B** derive the encryption key `EK = KDF(S, "EncryptionKey" || H)`
 
 ### Algorithms
 
 | What       | Example                                    | Algorithm         |
 |------------|--------------------------------------------|-------------------|
-| RNG        | `RNG(256)`                                 | `NIST SP 800-90A` |
+| RNG        | `RNG(256 bits)`                            | `NIST SP 800-90A` |
 | KEM        | `ENCAPS(S, ePK), DECAPS(E, eSK)`           | `ML-KEM-1024`     |
 | KDF        | `KDF(S, "EncryptionKey")`                  | `HKDF`            |
 | Sign       | `SIGN(msg, sSK, aad), VERIFY(S, sPK, aad)` | `ML-DSA-87`       |
@@ -123,6 +122,11 @@ hidden from the intermediary nodes.
 Assume **Node A** (client) has already established a connection to **Node B** (entry node), using the peer-to-peer
 connection protocol. **Node C** has been selected by **Node A** as the next hop in the route.
 
+Note that as soon as a node is part of a route, layered (onion) encryption is used for all messages that either target
+or go through that node. For example, sending a message from `Node A` to `Node C` once it is in the route would be
+encrypted under `Node C` then `Node B`, so `Node B` can unwrap their layer and still not understand the contents for
+`Node C`.
+
 1. **Node A**
     - **Node A** generates the ephemeral tunnel key pair `(tPKa2c, tSKa2c)`
     - **Node A** generates the token `T = RNG(256) || TimeStamp`
@@ -139,17 +143,17 @@ connection protocol. **Node C** has been selected by **Node A** as the next hop 
 3. **Node C**, `TunnelRequest(T, tPKa2c)`
     - **Node C** checks the token timestamp is fresh
     - **Node C** checks `T'` isn't in the token cache, and caches `T'`
-    - **Node C** creates a random shared secret `S`
-    - **Node C** creates a KEM-wrapped key: `E = ENCAPS(S, ePKa)`
-    - **Node C** creates a signature `S2 = SIGN(CertC || E || tPKa2c, aad=T' || TimeStamp() || IdB)`
+    - **Node C** creates a KEM-wrapped key: `E, S = ENCAPS(tPKa2c)`
+    - **Node C** creates a signature `S2 = SIGN(CertC || E || tPKa2c, aad=T' || TimeStamp() || IdB)` # Note: IdB used here to prove to Node A that Node C is connected to Node B
     - **Node C** sends `TunnelAccept(T', CertC || E || tPKa2c, S2)` to **Node A**
 
 
-3. **Node A**, `TunnelAccept(T', CertC || E || 'tPKa2c, S2)`
+4. **Node A**, `TunnelAccept(T', CertC || E || 'tPKa2c, S2)`
     - **Node A** performs `VerifyNode(CertC, IdB, S2, S2-AAD)`
     - **Node A** verifies `tPKa2c == 'tPKa2c`
-    - **Node A** computes `S = DECAPS(E, eSKa)`
+    - **Node A** computes `S = DECAPS(E, tSKa2c)`
 
 
 5. **Encrypted, authenticated tunnel is active**
-    - **Node A** and **Node C** derive the tunnel encryption key `EK = KDF(S, "TunnelEncryptionKey")`
+    - **Node A** and **Node C** create `H = HASH(E || T || CertC || tPKa2c)`
+    - **Node A** and **Node C** derive the tunnel encryption key `EK = KDF(S, "TunnelEncryptionKey" || H)`

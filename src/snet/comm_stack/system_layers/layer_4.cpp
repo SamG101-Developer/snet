@@ -170,6 +170,7 @@ auto snet::comm_stack::layers::Layer4::handle_connection_request(
     // Create the connection object to track the conversation.
     auto conn = std::make_unique<Connection>(
         peer_ip, peer_port, peer_id, req->conn_tok, ConnectionState::PENDING_CONNECTION, peer_epk);
+    conn->peer_cert = peer_cert;
 
     // Create the local and remote session identifiers.
     const auto local_session_id = crypt::asymmetric::create_aad(conn->conn_tok, m_self_id);;
@@ -245,6 +246,7 @@ auto snet::comm_stack::layers::Layer4::handle_connection_accept(
     }
 
     // Cache the public key and certificate for future use.
+    conn->peer_cert = peer_cert;
     m_cached_certs[conn->peer_id] = peer_cert;
     m_cached_pkeys[conn->peer_id] = peer_spk;
 
@@ -253,7 +255,8 @@ auto snet::comm_stack::layers::Layer4::handle_connection_accept(
     conn->e2e_key = std::move(shared_secret);
 
     // Create a new Layer4_ConnectionAck response and send it.
-    const auto hash_e2e_primary_key = crypt::hash::sha3_256(*conn->e2e_key);
+    const auto hash_e2e_primary_key = crypt::hash::sha3_256(
+        *conn->e2e_key + conn->conn_tok + m_self_cert + req->acceptor_cert + crypt::asymmetric::serialize_public(conn->self_esk));
     const auto hash_e2e_primary_key_sig = crypt::asymmetric::sign(m_static_skey, hash_e2e_primary_key, remote_session_id.get());
     auto response = std::make_unique<Layer4_ConnectionAck>(hash_e2e_primary_key_sig);
     send(conn, std::move(response));
@@ -279,7 +282,9 @@ auto snet::comm_stack::layers::Layer4::handle_connection_ack(
     const auto peer_spk = m_cached_pkeys[conn->peer_id];
 
     // Verify the signature on the hash of the shared secret.
-    const auto hash_e2e_primary_key = crypt::hash::sha3_256(*conn->e2e_key);
+    const auto hash_e2e_primary_key = crypt::hash::sha3_256(
+        *conn->e2e_key + conn->conn_tok + crypt::certificate::serialize_certificate(conn->peer_cert) + m_self_cert +
+        crypt::asymmetric::serialize_public(conn->peer_epk));
     if (not crypt::asymmetric::verify(peer_spk, req->sig, hash_e2e_primary_key, local_session_id.get())) {
         auto response = std::make_unique<Layer4_ConnectionClose>("Shared secret hash signature verification failed");
         send(conn, std::move(response));
