@@ -63,4 +63,23 @@ export namespace snet::utils {
         // Decode the bytes to a string using UTF-8 encoding.
         return {data.begin(), data.end()};
     }
+
+    inline auto crc32(
+        const std::span<const std::uint8_t> data) ->
+        std::uint32_t {
+        // Compute the CRC32 checksum of the data.
+        auto crc = 0xFFFFFFFF;
+        for (const auto byte : data) {
+            crc ^= byte;
+            for (auto j = 0; j < 8; ++j) {
+                if (crc & 1) {
+                    crc = (crc >> 1) ^ 0xEDB88320;
+                }
+                else {
+                    crc >>= 1;
+                }
+            }
+        }
+        return ~crc;
+    }
 }
