@@ -144,7 +144,7 @@ encrypted under `Node C` then `Node B`, so `Node B` can unwrap their layer and s
     - **Node C** checks the token timestamp is fresh
     - **Node C** checks `T'` isn't in the token cache, and caches `T'`
     - **Node C** creates a KEM-wrapped key: `E, S = ENCAPS(tPKa2c)`
-    - **Node C** creates a signature `S2 = SIGN(CertC || E || tPKa2c, aad=T' || TimeStamp() || IdB)` # Note: IdB used here to prove to Node A that Node C is connected to Node B
+    - **Node C** creates a signature `S2 = SIGN(CertC || E || tPKa2c, aad=T' || TimeStamp() || IdB)`
     - **Node C** sends `TunnelAccept(T', CertC || E || tPKa2c, S2)` to **Node A**
 
 
@@ -157,3 +157,8 @@ encrypted under `Node C` then `Node B`, so `Node B` can unwrap their layer and s
 5. **Encrypted, authenticated tunnel is active**
     - **Node A** and **Node C** create `H = HASH(E || T || CertC || tPKa2c)`
     - **Node A** and **Node C** derive the tunnel encryption key `EK = KDF(S, "TunnelEncryptionKey" || H)`
+
+### Note
+
+- `Node C` uses `IdB` in the signature AAD to prove to `Node A` that it is talking to `Node B`, not some other node,
+  proving the path of the route. Given `Node C` doesn't know who `Node A` is, `IdA` cannot be used (it is not known).

@@ -4,6 +4,7 @@ module;
 #include <genex/to_container.hpp>
 #include <genex/actions/remove_if.hpp>
 #include <genex/actions/shuffle.hpp>
+#include <genex/views/concat.hpp>
 #include <genex/views/materialize.hpp>
 #include <genex/views/ptr.hpp>
 #include <genex/views/reverse.hpp>
@@ -358,7 +359,7 @@ auto snet::comm_stack::layers::Layer2::handle_tunnel_join_request(
     m_logger->info("Layer2 sending tunnel join accept to" + FORMAT_PEER_INFO());
     auto response = std::make_unique<Layer2_TunnelJoinAccept>(
         req->route_token, m_self_node_info->certificate, kem.ct, kem_sig);
-    send_secure(conn, std::move(response)); // todo: feel like this should be send_tunnel_backwards (all info is ready for it so)
+    send_secure(conn, std::move(response));
 }
 
 
@@ -483,6 +484,7 @@ auto snet::comm_stack::layers::Layer2::handle_tunnel_data_backward(
     // Route owner decrypts all the layers of encryption and handles the internal request.
     for (auto &&node : m_route->nodes) {
         // Todo: check every node tunnel token layered inside the request
+
         const auto inner_enc_req = serex::load<EncryptedRequest*>(utils::decode_bytes(req->data));
         const auto [ct, iv, tag] = serex::load<crypt::symmetric::CipherText>(utils::decode_bytes(inner_enc_req->ciphertext));
         const auto plaintext = crypt::symmetric::decrypt(*node->e2e_key, ct, iv, tag);
