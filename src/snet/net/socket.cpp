@@ -32,6 +32,8 @@ export namespace snet::net {
     };
 
     class UDPSocket : public Socket {
+        static constexpr auto MAX_UDP_SIZE = 65507uz;
+
     public:
         explicit UDPSocket(sys::socket_t fd = -1);
         auto send(std::span<std::uint8_t> data, std::string const &ip, std::uint16_t port) const -> void;
@@ -41,7 +43,7 @@ export namespace snet::net {
     class TCPSocket : public Socket {
     public:
         explicit TCPSocket(sys::socket_t fd = -1);
-        auto connect(std::string const &ip, std::uint16_t port) const -> bool;
+        [[nodiscard]] auto connect(std::string const &ip, std::uint16_t port) const -> bool;
         auto listen(std::int32_t backlog = 5) const -> void;
         [[nodiscard]] auto accept() const -> TCPSocket;
         auto send(std::span<std::uint8_t> data) const -> void;
@@ -49,7 +51,7 @@ export namespace snet::net {
     };
 
     template <typename S>
-    requires std::derived_from<S, Socket>
+        requires std::derived_from<S, Socket>
     auto socket_pair() -> std::pair<S, S>;
 
     auto select(
@@ -164,7 +166,6 @@ auto snet::net::UDPSocket::send(
     std::memcpy(buffer.data(), &data_size, sizeof(std::size_t));
     std::memcpy(buffer.data() + sizeof(std::size_t), data.data(), data_size);
 
-    // Send the data.
     const auto sent = sys::sendto(
         socket_fd, buffer.data(), buffer.size(), 0,
         reinterpret_cast<sys::sockaddr*>(&addr), sizeof(addr));
@@ -182,7 +183,7 @@ auto snet::net::UDPSocket::recv() const
     sys::socklen_t addr_len = sizeof(src_addr);
 
     // Create a buffer to hold the received data.
-    auto header_buffer = std::vector<std::uint8_t>(65535);
+    auto header_buffer = std::vector<std::uint8_t>(MAX_UDP_SIZE);
     const auto recv_len = sys::recvfrom(
         socket_fd, header_buffer.data(), header_buffer.size(), 0,
         reinterpret_cast<sys::sockaddr*>(&src_addr), &addr_len);
@@ -198,13 +199,7 @@ auto snet::net::UDPSocket::recv() const
     // Extract the data length from the header.
     auto data_size = 0uz;
     std::memcpy(&data_size, header_buffer.data(), sizeof(std::size_t));
-
-    // todo: temp for testing
-    if (data_size > 65535 - sizeof(std::size_t)) {
-        data_size = 65535 - sizeof(std::size_t);
-    }
-
-    else if (data_size + sizeof(std::size_t) != static_cast<std::size_t>(recv_len)) {
+    if (data_size + sizeof(std::size_t) != static_cast<std::size_t>(recv_len)) {
         throw std::runtime_error("Received data size does not match header length");
     }
 
@@ -279,12 +274,18 @@ auto snet::net::TCPSocket::send(
     const std::span<std::uint8_t> data) const
     -> void {
     // Add a frame header specifying the length of the data (size_t, so 8 byte header).
-    auto buffer = std::vector<std::uint8_t>(data.size());
-    std::memcpy(buffer.data(), data.data(), data.size());
+    const auto data_size = data.size();
+    auto buffer = std::vector<std::uint8_t>(data_size);
+    std::memcpy(buffer.data(), data.data(), data_size);
 
-    // Send the data.
-    if (sys::send(socket_fd, buffer.data(), buffer.size(), 0) != static_cast<sys::ssize_t>(buffer.size())) {
-        throw std::system_error(errno, std::system_category(), "Failed to send data");
+    // Send all data, handling partial sends.
+    auto total_sent = 0zu;
+    while (total_sent < data_size) {
+        const auto sent = sys::send(socket_fd, buffer.data() + total_sent, data_size - total_sent, 0);
+        if (sent <= 0) {
+            throw std::system_error(errno, std::system_category(), "Failed to send data");
+        }
+        total_sent += static_cast<std::size_t>(sent);
     }
 }
 
@@ -312,7 +313,7 @@ auto snet::net::TCPSocket::recv() const
 
 
 template <typename S>
-requires std::derived_from<S, snet::net::Socket>
+    requires std::derived_from<S, snet::net::Socket>
 auto snet::net::socket_pair() -> std::pair<S, S> {
     int sv[2];
     if (sys::socketpair(sys::AF_UNIX, sys::SOCK_STREAM, 0, sv) == -1) {
