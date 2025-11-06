@@ -74,12 +74,12 @@ export namespace snet::comm_stack::layers::http {
 
         auto handle_data_exchange_as_client(
             net::TCPSocket &&client_socket,
-            SelectableBytesIO &routing_entry_point)
+            SelectableBytesIO const &routing_entry_point)
             -> void;
 
         auto handle_data_exchange_as_server(
             net::TCPSocket &&server_socket,
-            SelectableBytesIO &routing_exit_point,
+            SelectableBytesIO const &routing_exit_point,
             sys::socket_t client_socket_fd,
             crypt::bytes::RawBytes const &prev_conn_tok)
             -> void;
@@ -225,7 +225,7 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_http_data_to_client(
 
 auto snet::comm_stack::layers::http::LayerHttp::handle_data_exchange_as_client(
     net::TCPSocket &&client_socket,
-    SelectableBytesIO &routing_entry_point)
+    SelectableBytesIO const &routing_entry_point)
     -> void {
     // Create a socket pair to communicate with the routing entry point.
     const auto sockets = std::vector{client_socket.fileno(), routing_entry_point.fileno()};
@@ -270,7 +270,7 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_data_exchange_as_client(
 
 auto snet::comm_stack::layers::http::LayerHttp::handle_data_exchange_as_server(
     net::TCPSocket &&server_socket,
-    SelectableBytesIO &routing_exit_point,
+    SelectableBytesIO const &routing_exit_point,
     sys::socket_t client_socket_fd,
     crypt::bytes::RawBytes const &prev_conn_tok)
     -> void {
