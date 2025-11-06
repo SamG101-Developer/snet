@@ -40,7 +40,7 @@ export namespace snet::crypt::asymmetric {
         const AAD *aad,
         bytes::ViewBytes exp_msg = {},
         const AAD *exp_aad = nullptr,
-        std::uint32_t tol = timestamp::TS_TOLERANCE_MESSAGE_SIGNATURE)
+        std::uint32_t tol = timestamp::TS_TOLERANCE_MESSAGE_SIGNATURE_MS)
         -> bool;
 
     auto encaps(
