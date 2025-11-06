@@ -27,7 +27,7 @@ import snet.crypt.hash;
 import snet.crypt.random;
 import snet.crypt.symmetric;
 import snet.crypt.timestamp;
-import snet.net.socket;
+import snet.net.udp_socket;
 import snet.utils.encoding;
 import snet.utils.logging;
 

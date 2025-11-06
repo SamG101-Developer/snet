@@ -16,7 +16,7 @@ import snet.comm_stack.system_layers.layer_d;
 import snet.credentials.key_store_data;
 import snet.crypt.bytes;
 import snet.crypt.symmetric;
-import snet.net.socket;
+import snet.net.udp_socket;
 import snet.utils.encoding;
 import snet.utils.logging;
 
@@ -150,6 +150,7 @@ auto snet::comm_stack::CommStack::listen() const
 
                 // If the response is still encrypted, it is for tunneling. Decrypt a layer and push onwards.
                 // Todo: maybe use a "if (serex::poly_non_owning_cast<EncryptedRequest>(req) != nullptr)" instead
+                // Todo: maybe move this into a handle_encrypted at layer2?
                 if (req->secure) {
                     m_logger->info("Received tunneled request from" + FORMAT_PEER_INFO());
                     tunnel_response = serex::poly_owning_cast<EncryptedRequest>(std::move(req));

@@ -20,7 +20,7 @@ import snet.credentials.key_store_data;
 import snet.crypt.asymmetric;
 import snet.crypt.bytes;
 import snet.manager.ds_manager;
-import snet.net.socket;
+import snet.net.udp_socket;
 import snet.utils.files;
 import snet.utils.encoding;
 import snet.utils.logging;

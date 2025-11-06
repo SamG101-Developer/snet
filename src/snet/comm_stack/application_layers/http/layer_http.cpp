@@ -14,7 +14,8 @@ import snet.comm_stack.connection;
 import snet.comm_stack.request;
 import snet.comm_stack.system_layers.layer_1;
 import snet.crypt.bytes;
-import snet.net.socket;
+import snet.net.tcp_socket;
+import snet.net.select;
 import snet.utils.encoding;
 
 
@@ -238,7 +239,7 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_data_exchange_as_client(
         for (auto sock : readable) {
             // Receive the data from either of the sockets.
             auto data = std::vector<std::uint8_t>(65535);
-            if (const auto n = sys::recvfrom(sock, data.data(), data.size(), 0, nullptr, nullptr); n <= 0) {
+            if (const auto n = sys::recv(sock, data.data(), data.size(), 0); n <= 0) {
                 errored.emplace_back(sock);
                 break;
             }
@@ -262,8 +263,8 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_data_exchange_as_client(
     }
 
     // Close the client socket and clean up.
-    client_socket.close();
-    routing_entry_point.close();
+    // client_socket.close();
+    // routing_entry_point.close();
 }
 
 
@@ -285,7 +286,7 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_data_exchange_as_server(
         for (auto sock : readable) {
             // Receive the data from either of the sockets.
             auto data = std::vector<std::uint8_t>(65535);
-            if (const auto n = sys::recvfrom(sock, data.data(), data.size(), 0, nullptr, nullptr); n <= 0) {
+            if (const auto n = sys::recv(sock, data.data(), data.size(), 0); n <= 0) {
                 errored.emplace_back(sock);
                 break;
             }
@@ -310,9 +311,9 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_data_exchange_as_server(
     }
 
     // Close the server socket and clean up.
-    server_socket.close();
-    routing_exit_point.close();
-    m_received_data_at_server.erase(m_received_data_at_server.find(client_socket_fd));
-    m_received_data_at_client.erase(m_received_data_at_client.find(client_socket_fd));
+    // server_socket.close();
+    // routing_exit_point.close();
+    // m_received_data_at_server.erase(m_received_data_at_server.find(client_socket_fd));
+    // m_received_data_at_client.erase(m_received_data_at_client.find(client_socket_fd));
     m_logger->info("Closed HTTP connection and cleaned up routing buffers");
 }

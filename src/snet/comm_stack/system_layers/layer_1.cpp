@@ -19,7 +19,7 @@ import snet.comm_stack.system_layers.layer_d;
 import snet.comm_stack.system_layers.layer_2;
 import snet.comm_stack.request;
 import snet.credentials.key_store_data;
-import snet.net.socket;
+import snet.net.udp_socket;
 import snet.utils.encoding;
 import snet.utils.logging;
 

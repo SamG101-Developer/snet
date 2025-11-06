@@ -11,7 +11,7 @@ import snet.comm_stack.system_layers.layer_4;
 import snet.comm_stack.system_layers.system_layer_base;
 import snet.credentials.key_store_data;
 import snet.crypt.bytes;
-import snet.net.socket;
+import snet.net.udp_socket;
 import snet.utils.encoding;
 import snet.utils.logging;
 

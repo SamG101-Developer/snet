@@ -8,7 +8,7 @@ import snet.comm_stack.connection;
 import snet.comm_stack.request;
 import snet.credentials.key_store_data;
 import snet.crypt.symmetric;
-import snet.net.socket;
+import snet.net.udp_socket;
 import snet.utils.encoding;
 import snet.utils.logging;
 
@@ -39,9 +39,9 @@ export namespace snet::comm_stack::layers {
 
     protected:
         template <typename T>
-        auto attach_metadata(
+        static auto attach_metadata(
             const Connection *conn,
-            T *req) const
+            T *req)
             -> void;
     };
 }
@@ -95,7 +95,7 @@ auto snet::comm_stack::layers::SystemLayerBase::send_secure(
 template <typename T>
 auto snet::comm_stack::layers::SystemLayerBase::attach_metadata(
     const Connection *conn,
-    T *req) const
+    T *req)
     -> void {
     req->conn_tok = conn->conn_tok;
 }

@@ -20,7 +20,7 @@ import snet.crypt.random;
 import snet.crypt.timestamp;
 import snet.comm_stack.connection;
 import snet.comm_stack.request;
-import snet.net.socket;
+import snet.net.udp_socket;
 import snet.utils.encoding;
 import snet.utils.logging;
 
