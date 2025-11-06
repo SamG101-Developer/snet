@@ -45,7 +45,8 @@ export namespace snet::comm_stack::layers::http {
 
     private:
         [[noreturn]]
-        auto start() -> void;
+        auto start()
+            -> void;
 
         auto handle_proxy_request(
             net::TCPSocket &&client_socket)
@@ -157,7 +158,7 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_proxy_request(
 
     // Create the response selectable-object that is interacted with from Layer1.
     m_received_data_at_client[client_socket_fd] = SelectableBytesIO();
-    auto &routing_entry_point = m_received_data_at_client[client_socket_fd];
+    auto const &routing_entry_point = m_received_data_at_client[client_socket_fd];
     auto http_ok = utils::encode_string(HTTP_OK);
     client_socket.send(http_ok);
 
@@ -184,7 +185,7 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_http_connect_to_server(
 
     // Save the connection against the client socket identifier.
     m_received_data_at_server[req->client_socket_fd] = SelectableBytesIO();
-    auto &routing_exit_point = m_received_data_at_server[req->client_socket_fd];
+    auto const &routing_exit_point = m_received_data_at_server[req->client_socket_fd];
     handle_data_exchange_as_server(std::move(internet_sock), routing_exit_point, req->client_socket_fd, tun_req->conn_tok);
 }
 

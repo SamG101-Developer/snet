@@ -6,11 +6,37 @@ import snet.utils.files;
 
 
 export namespace snet::constants {
+    /**
+     * Generate the directory path used for caching. This is platform-dependent, and falls back to the current working
+     * directory if no support is available for cache paths form environment variables.
+     * @return The filesystem path to use for caching.
+     */
     auto get_cache_dir() -> std::filesystem::path;
+
+    /**
+     * Create a file and fill it with a default json object if it does not already exist. This allows for creating a
+     * file with default content but not overwriting existing data.
+     * @param path The path to the file to create.
+     */
     auto create_if_not_exists(const std::filesystem::path &path) -> void;
 
+    /**
+     * The generated cache directory path, used as the base for other cache paths and files. This is initialized at
+     * runtime, once.
+     */
     const auto CACHE_DIR = get_cache_dir();
+
+    /**
+     * The file containing profiles logged in to this system. For each profile in this file, there is keyring data
+     * stored to allow for password matching. Keys/certs stored too.
+     */
     const auto PROFILE_FILE = CACHE_DIR / "profiles" / "profiles.json";
+
+    /**
+     * This directory contains a cache file per profile, which stores data such as known nodes, directory service
+     * information, etc. For each profile in profile.json, there is a matching
+     * @code profiles/profile-cache/{profile_id}.json@endcode file.
+     */
     const auto PROFILE_CACHE_DIR = CACHE_DIR / "profiles" / "profile-cache";
 
     const auto DIRECTORY_SERVICE_PUBLIC_FILE = CACHE_DIR / "profiles" / "directory-service.json";

@@ -22,6 +22,7 @@ export namespace sys {
     using ::flock;
 }
 
+
 // <sys/socket.h>
 export namespace sys {
     using socket_t = int;
@@ -76,6 +77,7 @@ export namespace sys {
 #undef INET_ADDRSTRLEN
     constexpr auto INET_ADDRSTRLEN = 16;
 }
+
 
 // <sys/select.h>
 export namespace sys {
