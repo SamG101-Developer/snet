@@ -85,6 +85,12 @@ export namespace snet::comm_stack {
 
         [[noreturn]]
         auto listen() const -> void;
+
+        auto process_listen_result(
+            std::vector<std::uint8_t> &&data,
+            std::string &&peer_ip,
+            std::uint16_t peer_port) const
+            -> void;
     };
 }
 
@@ -132,64 +138,73 @@ auto snet::comm_stack::CommStack::listen() const
     // Listen for incoming raw requests, and handle them in a new thread.
     while (true) {
         const auto [data, peer_ip, peer_port] = m_sock->recv();
-        auto req = serex::load<RawRequest*>(utils::decode_bytes(data));
-        auto tunnel_response = std::unique_ptr<EncryptedRequest>(nullptr);
-        m_logger->debug("CommStack processing request" + FORMAT_PEER_INFO());
-
-        // Handle secure p2p requests.
-        if (req->secure) {
-            auto tok = req->conn_tok;
-            auto ct_serialized = utils::decode_bytes(serex::poly_non_owning_cast<EncryptedRequest>(req)->ciphertext);
-            auto [ct, iv, tag] = serex::load<crypt::symmetric::CipherText>(ct_serialized);
-
-            // Ensure the token exists in the connection cache.
-            if (ConnectionCache::connections.contains(tok)) {
-                auto e2e_key = *ConnectionCache::connections[tok]->e2e_key;
-                auto raw_data = crypt::symmetric::decrypt(e2e_key, ct, iv, tag);
-                req = serex::load<RawRequest*>(utils::decode_bytes(raw_data));
-
-                // If the response is still encrypted, it is for tunneling. Decrypt a layer and push onwards.
-                // Todo: maybe use a "if (serex::poly_non_owning_cast<EncryptedRequest>(req) != nullptr)" instead
-                // Todo: maybe move this into a handle_encrypted at layer2?
-                if (req->secure) {
-                    m_logger->info("Received tunneled request from" + FORMAT_PEER_INFO());
-                    tunnel_response = serex::poly_owning_cast<EncryptedRequest>(std::move(req));
-                    e2e_key = m_l2->get_participating_route_keys()[tunnel_response->conn_tok];
-                    auto [ct2, iv2, tag2] = serex::load<crypt::symmetric::CipherText>(
-                        utils::decode_bytes(tunnel_response->ciphertext));
-                    raw_data = crypt::symmetric::decrypt(e2e_key, ct2, iv2, tag2);
-                    req = serex::load<RawRequest*>(utils::decode_bytes(raw_data));
-                }
-            }
-
-            // If the token is unknown, log a warning and continue.
-            else {
-                m_logger->warn("Received secure request with unknown token" + FORMAT_PEER_INFO());
-                continue;
-            }
-        }
-
-        while (not all_layers_ready()) {
-            m_logger->info("Waiting for all layers to be ready...");
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-        }
-
-        MASTER_HANDLER(Layer4_ConnectionRequest, m_l4);
-        MASTER_HANDLER(Layer4_ConnectionAccept, m_l4);
-        MASTER_HANDLER(Layer4_ConnectionAck, m_l4);
-        MASTER_HANDLER(Layer4_ConnectionClose, m_l4);
-
-        MASTER_HANDLER(LayerD_BootstrapRequest, m_ld);
-        MASTER_HANDLER(LayerD_BootstrapResponse, m_ld);
-
-        MASTER_HANDLER(Layer2_RouteExtensionRequest, m_l2, tunnel_response);
-        MASTER_HANDLER(Layer2_TunnelJoinRequest, m_l2);
-        MASTER_HANDLER(Layer2_TunnelJoinReject, m_l2);
-        MASTER_HANDLER(Layer2_TunnelJoinAccept, m_l2);
-        MASTER_HANDLER(Layer2_TunnelDataForward, m_l2, tunnel_response);
-        MASTER_HANDLER(Layer2_TunnelDataBackward, m_l2);
-
-        MASTER_HANDLER(Layer1_ApplicationLayerRequest, m_l1, tunnel_response);
-        MASTER_HANDLER(Layer1_ApplicationLayerResponse, m_l1, tunnel_response);
+        std::jthread([this, data = std::move(data), peer_ip = std::move(peer_ip), peer_port]() mutable {
+            process_listen_result(std::move(data), std::move(peer_ip), peer_port);
+        }).detach();
     }
+}
+
+
+auto snet::comm_stack::CommStack::process_listen_result(
+    std::vector<std::uint8_t> &&data,
+    std::string &&peer_ip,
+    std::uint16_t peer_port) const
+    -> void {
+    auto req = serex::load<RawRequest*>(utils::decode_bytes(data));
+    auto tunnel_response = std::unique_ptr<EncryptedRequest>(nullptr);
+    const auto tok = req->conn_tok;
+    m_logger->debug("CommStack processing request" + FORMAT_PEER_INFO());
+
+    // Handle secure p2p requests.
+    if (req->secure and ConnectionCache::connections.contains(tok)) {
+        const auto cast_req = serex::poly_non_owning_cast<EncryptedRequest>(req);
+        const auto ct_serialized = utils::decode_bytes(cast_req->ciphertext);
+        const auto [ct, iv, tag] = serex::load<crypt::symmetric::CipherText>(ct_serialized);
+
+        const auto e2e_key = *ConnectionCache::connections[tok]->e2e_key;
+        const auto raw_data = crypt::symmetric::decrypt(e2e_key, ct, iv, tag);
+        req = serex::load<RawRequest*>(utils::decode_bytes(raw_data));
+    }
+
+    // If the secure request's token is unknown, log a warning and continue.
+    else if (req->secure and not ConnectionCache::connections.contains(tok)) {
+        m_logger->warn("Received secure request with unknown token" + FORMAT_PEER_INFO());
+        return;
+    }
+
+    // Handle tunneled p2p requests (request is still encrypted).
+    if (req->secure) {
+        // Identify the correct tunnel key to use for the decryption.
+        tunnel_response = serex::poly_owning_cast<EncryptedRequest>(std::move(req));
+        const auto e2e_key = m_l2->get_participating_route_keys()[tunnel_response->conn_tok];
+        auto [ct2, iv2, tag2] = serex::load<crypt::symmetric::CipherText>(
+            utils::decode_bytes(tunnel_response->ciphertext));
+
+        // Decrypt and load the inner request object.
+        auto raw_data = crypt::symmetric::decrypt(e2e_key, ct2, iv2, tag2);
+        req = serex::load<RawRequest*>(utils::decode_bytes(raw_data));
+    }
+
+    while (not all_layers_ready()) {
+        m_logger->info("Waiting for all layers to be ready...");
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+
+    MASTER_HANDLER(Layer4_ConnectionRequest, m_l4);
+    MASTER_HANDLER(Layer4_ConnectionAccept, m_l4);
+    MASTER_HANDLER(Layer4_ConnectionAck, m_l4);
+    MASTER_HANDLER(Layer4_ConnectionClose, m_l4);
+
+    MASTER_HANDLER(LayerD_BootstrapRequest, m_ld);
+    MASTER_HANDLER(LayerD_BootstrapResponse, m_ld);
+
+    MASTER_HANDLER(Layer2_RouteExtensionRequest, m_l2, tunnel_response);
+    MASTER_HANDLER(Layer2_TunnelJoinRequest, m_l2);
+    MASTER_HANDLER(Layer2_TunnelJoinReject, m_l2);
+    MASTER_HANDLER(Layer2_TunnelJoinAccept, m_l2);
+    MASTER_HANDLER(Layer2_TunnelDataForward, m_l2, tunnel_response);
+    MASTER_HANDLER(Layer2_TunnelDataBackward, m_l2);
+
+    MASTER_HANDLER(Layer1_ApplicationLayerRequest, m_l1, tunnel_response);
+    MASTER_HANDLER(Layer1_ApplicationLayerResponse, m_l1, tunnel_response);
 }
