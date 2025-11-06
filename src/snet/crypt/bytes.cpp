@@ -4,46 +4,54 @@ import std;
 
 
 export namespace snet::crypt::bytes {
+    /**
+     * The @c SecureAllocator is a custom allocator for @c SecureVector that uses OpenSSL's secure memory functions. This
+     * provides a standard way to allocate and deallocate memory securely, ensuring that sensitive data is not left in
+     * memory after use.
+     * @tparam T The type of elements to be allocated.
+     */
     template <typename T>
     struct SecureAllocator;
 
     /**
-     * SecureVector is a custom vector type that uses SecureAllocator to ensure that the memory used for its elements
-     * is allocated securely.
+     * The @c SecureVector is a custom vector type that uses @c SecureAllocator to ensure that the memory used for its
+     * elements is allocated securely.
      */
     template <typename T>
     using SecureVector = std::vector<T, SecureAllocator<T>>;
 
     /**
-     * RawVector is a standard vector type that does not use SecureAllocator. It is used for non-sensitive data where
-     * secure memory allocation is not required.
+     * The @c RawVector is a standard vector type that does not use @c SecureAllocator. It is used for non-sensitive
+     * data where secure memory allocation is not required.
      */
     template <typename T>
     using RawVector = std::vector<T>;
 
     /**
-     * SecureBytes is a type alias for SecureVector of uint8_t, which is used to represent secure byte arrays. This is
-     * useful for cryptographic operations where sensitive data needs to be stored securely in memory.
+     * The @c SecureBytes is a type alias for @c SecureVector of @c std::uint8_t, which is used to represent secure byte
+     * arrays. This is useful for cryptographic operations where sensitive data needs to be stored securely in memory.
      */
     using SecureBytes = SecureVector<std::uint8_t>;
 
     /**
-     * RawBytes is a type alias for RawVector of uint8_t, which is used to represent byte arrays that do not require
-     * secure memory allocation. This is useful for non-sensitive data where performance is more critical than security.
+     * The @c RawBytes is a type alias for @c RawVector of @c std::uint8_t, which is used to represent byte arrays that
+     * do not require secure memory allocation. This is useful for non-sensitive data where performance is more critical
+     * than security.
      */
     using RawBytes = RawVector<std::uint8_t>;
 
     /**
-     * ViewBytes is a type alias for std::span of const uint8_t, which provides a non-owning view over a contiguous
-     * sequence of bytes. This is useful for passing around byte data without copying it, allowing for efficient size
-     * and data access.
+     * The @c ViewBytes is a type alias for @c std::span of @code const uint8_t@endcode, which provides a non-owning
+     * view over a contiguous sequence of bytes. This is useful for passing around byte data without copying it,
+     * allowing for efficient size and data access.
      */
     using ViewBytes = std::span<const std::uint8_t>;
 
 
     /**
-     * This operator== is a no-op for SecureAllocator, meaning that it always returns true. This is because SecureAllocator
-     * is designed to be a stateless allocator, and the equality of two instances does not depend on their internal state.
+     * The @c operator== is a no-op for @c SecureAllocator, meaning it always returns @c true. This is because
+     * @c SecureAllocator is designed to be a stateless allocator, and the equality of two instances does not depend on
+     * their internal state.
      * @return Always true.
      */
     template <typename T, typename U>
@@ -56,8 +64,9 @@ export namespace snet::crypt::bytes {
 
 
     /**
-     * This operator!= is a no-op for SecureAllocator, meaning that it always returns false. This is because SecureAllocator
-     * is designed to be a stateless allocator, and the inequality of two instances does not depend on their internal state.
+     * The @c operator!= is a no-op for @c SecureAllocator, meaning it always returns @c false. This is because
+     * @c SecureAllocator is designed to be a stateless allocator, and the inequality of two instances does not depend
+     * on their internal state.
      * @return Always false.
      */
     template <typename T, typename U>
@@ -69,12 +78,7 @@ export namespace snet::crypt::bytes {
     }
 }
 
-/**
- * The SecureAllocator is a custom allocator for SecureVector that uses OpenSSL's secure memory functions. This provides
- * a standard way to allocate and deallocate memory securely, ensuring that sensitive data is not left in memory after
- * use.
- * @tparam T The type of elements to be allocated.
- */
+
 template <typename T>
 struct snet::crypt::bytes::SecureAllocator {
     using value_type = T;
@@ -146,10 +150,10 @@ struct snet::crypt::bytes::SecureAllocator {
  * @return A new @c RawBytes object containing the concatenated data from @c a and @c b.
  */
 export inline auto operator+(
-    const snet::crypt::bytes::RawBytes &a,
-    const snet::crypt::bytes::RawBytes &b)
+    const snet::crypt::bytes::ViewBytes a,
+    const snet::crypt::bytes::ViewBytes &b)
     -> snet::crypt::bytes::RawBytes {
-    auto result = a;
+    auto result = snet::crypt::bytes::RawBytes(a.begin(), a.end());
     result.reserve(a.size() + b.size());
     result.append_range(b);
     return result;
@@ -158,7 +162,7 @@ export inline auto operator+(
 
 export inline auto operator+=(
     snet::crypt::bytes::RawBytes &a,
-    const snet::crypt::bytes::RawBytes &b)
+    snet::crypt::bytes::ViewBytes b)
     -> snet::crypt::bytes::RawBytes& {
     a.reserve(a.size() + b.size());
     a.append_range(b);
