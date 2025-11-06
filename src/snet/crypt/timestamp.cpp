@@ -5,8 +5,8 @@ import snet.crypt.bytes;
 
 export namespace snet::crypt::timestamp {
     constexpr auto TS_BYTES_LEN = sizeof(std::int64_t);
-    constexpr auto TS_TOLERANCE_MESSAGE_SIGNATURE = 60;
-    constexpr auto TS_TOLERANCE_CERTIFICATE_SIGNATURE = 60 * 60 * 24 * 365;
+    constexpr auto TS_TOLERANCE_MESSAGE_SIGNATURE_MS = 10'000;
+    constexpr auto TS_TOLERANCE_CERTIFICATE_SIGNATURE_MS = 1000uz * 60 * 60 * 24 * 365;
 
     auto timestamp()
         -> std::int64_t {
@@ -40,7 +40,7 @@ export namespace snet::crypt::timestamp {
 
     auto timestamp_in_tolerance(
         const std::int64_t timestamp,
-        const std::uint32_t tolerance = TS_TOLERANCE_MESSAGE_SIGNATURE)
+        const std::uint32_t tolerance = TS_TOLERANCE_MESSAGE_SIGNATURE_MS)
         -> bool {
         // Get the current time in milliseconds since the epoch.
         const auto now = std::chrono::system_clock::now().time_since_epoch();
