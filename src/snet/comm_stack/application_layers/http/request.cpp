@@ -9,16 +9,19 @@ import snet.crypt.bytes;
 
 export namespace snet::comm_stack::layers::http {
     struct LayerHttp_HttpConnectToServer final : RawRequest {
-        sys::socket_t client_socket_fd = 0;
+        sys::socket_t client_socket_fd = -1;
         std::string server_host;
+        std::uint16_t server_port = 0;
 
         LayerHttp_HttpConnectToServer() = default;
 
         LayerHttp_HttpConnectToServer(
             const sys::socket_t client_socket_fd,
-            std::string server_host) :
+            std::string server_host,
+            const std::uint16_t server_port) :
             client_socket_fd(client_socket_fd),
-            server_host(std::move(server_host)) {
+            server_host(std::move(server_host)),
+            server_port(server_port) {
         }
 
         auto serex_type() -> std::string override {
@@ -27,7 +30,7 @@ export namespace snet::comm_stack::layers::http {
 
         auto serialize(serex::Archive &ar) -> void override {
             RawRequest::serialize(ar);
-            serex::push_into_archive(ar, client_socket_fd, server_host);
+            serex::push_into_archive(ar, client_socket_fd, server_host, server_port);
         }
     };
 
