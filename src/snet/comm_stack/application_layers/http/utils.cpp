@@ -11,6 +11,7 @@ import std;
 import sys;
 
 import snet.net.socket;
+import snet.net.tcp_socket;
 import snet.crypt.bytes;
 
 
