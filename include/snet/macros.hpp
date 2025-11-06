@@ -17,7 +17,6 @@
             [this, req=std::move(req), &peer_ip, peer_port __VA_OPT__(, __VA_ARGS__ = std::move(__VA_ARGS__))] mutable {\
                 Handler->handle_command(peer_ip, peer_port, std::move(req) __VA_OPT__(, std::move(__VA_ARGS__)));\
             }).detach(); \
-        continue; \
     }
 
 
