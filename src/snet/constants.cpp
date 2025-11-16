@@ -44,6 +44,11 @@ export namespace snet::constants {
     const auto DIRECTORY_SERVICE_NODE_CACHE_DIR = CACHE_DIR / "profiles" / "directory-service-node-cache";
 
     const auto KEYRING_DIR = CACHE_DIR / "keyring";
+
+    constexpr auto DHT_KEY_LEN = 32uz;
+    constexpr auto DHT_K_VALUE = 20uz;
+    constexpr auto DHT_ALPHA_VALUE = 3uz;
+    const auto DHT_STORAGE_DIR = CACHE_DIR / "profiles" / "dht-storage";
 }
 
 
@@ -80,6 +85,7 @@ auto snet::constants::get_cache_dir() -> std::filesystem::path {
         utils::write_file(path / "profiles" / "directory-service.json", "{}");
     }
     std::filesystem::create_directories(path / "profiles" / "profile-cache");
+    std::filesystem::create_directories(path / "profiles" / "dht-storage");
     std::filesystem::create_directories(path / "profiles" / "directory-service-servers");
     std::filesystem::create_directories(path / "profiles" / "directory-service-node-cache");
     std::filesystem::create_directories(path / "keyring");
