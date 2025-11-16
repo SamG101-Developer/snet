@@ -1,9 +1,9 @@
 module;
 #include <snet/macros.hpp>
-#include <spdlog/logger.h>
 
 export module snet.comm_stack.application_layers.http.layer_http;
 import serex.serialize;
+import spdlog;
 import std;
 import sys;
 
@@ -28,10 +28,14 @@ export namespace snet::comm_stack::layers::http {
         std::mutex m_mutex;
         std::map<std::size_t, SelectableBytesIO> m_received_data_at_client;
         std::map<std::size_t, SelectableBytesIO> m_received_data_at_server;
+        bool m_enable;
 
     public:
         explicit LayerHttp(
             bool enable_socket = false);
+
+        auto setup()
+            -> void override;
 
         auto layer_proto_name()
             -> std::string override;
@@ -45,7 +49,7 @@ export namespace snet::comm_stack::layers::http {
 
     private:
         [[noreturn]]
-        auto start()
+        auto launch_proxy()
             -> void;
 
         auto handle_proxy_request(
@@ -53,24 +57,16 @@ export namespace snet::comm_stack::layers::http {
             -> void;
 
         auto handle_http_connect_to_server(
-            std::string const &peer_ip,
-            std::uint16_t peer_port,
-            std::unique_ptr<LayerHttp_HttpConnectToServer> &&req,
-            std::unique_ptr<EncryptedRequest> &&tun_req)
+            std::unique_ptr<EncryptedRequest> &&tun_req,
+            std::unique_ptr<LayerHttp_HttpConnectToServer> &&req)
             -> void;
 
         auto handle_http_data_to_server(
-            std::string const &peer_ip,
-            std::uint16_t peer_port,
-            std::unique_ptr<LayerHttp_HttpDataToServer> &&req,
-            std::unique_ptr<EncryptedRequest> &&tun_req)
+            std::unique_ptr<LayerHttp_HttpDataToServer> &&req)
             -> void;
 
         auto handle_http_data_to_client(
-            std::string const &peer_ip,
-            std::uint16_t peer_port,
-            std::unique_ptr<LayerHttp_HttpDataToClient> &&req,
-            std::unique_ptr<EncryptedRequest> &&tun_req)
+            std::unique_ptr<LayerHttp_HttpDataToClient> &&req)
             -> void;
 
         auto handle_data_exchange_as_client(
@@ -90,12 +86,18 @@ export namespace snet::comm_stack::layers::http {
 
 snet::comm_stack::layers::http::LayerHttp::LayerHttp(
     const bool enable_socket) {
+    m_enable = enable_socket;
+}
 
-    if (enable_socket) {
+
+auto snet::comm_stack::layers::http::LayerHttp::setup()
+    -> void {
+    if (m_enable) {
+        m_l2->create_route();
         m_proxy_socket = net::TCPSocket();
         m_proxy_socket.bind(9090);
         m_proxy_socket.listen();
-        std::jthread([this] { start(); }).detach();
+        std::jthread([this] { launch_proxy(); }).detach();
     }
 }
 
@@ -114,12 +116,12 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_command(
     -> void {
     // Map the request type and connection state to the appropriate handler.
     MAP_TO_HANDLER(Http, LayerHttp_HttpConnectToServer, true, handle_http_connect_to_server, std::move(tun_req));
-    MAP_TO_HANDLER(Http, LayerHttp_HttpDataToServer, true, handle_http_data_to_server, std::move(tun_req));
-    MAP_TO_HANDLER(Http, LayerHttp_HttpDataToClient, true, handle_http_data_to_client, std::move(tun_req));
+    MAP_TO_HANDLER(Http, LayerHttp_HttpDataToServer, true, handle_http_data_to_server);
+    MAP_TO_HANDLER(Http, LayerHttp_HttpDataToClient, true, handle_http_data_to_client);
 }
 
 
-auto snet::comm_stack::layers::http::LayerHttp::start()
+auto snet::comm_stack::layers::http::LayerHttp::launch_proxy()
     -> void {
     while (true) {
         auto client_socket = m_proxy_socket.accept();
@@ -168,10 +170,8 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_proxy_request(
 
 
 auto snet::comm_stack::layers::http::LayerHttp::handle_http_connect_to_server(
-    std::string const &peer_ip,
-    std::uint16_t peer_port,
-    std::unique_ptr<LayerHttp_HttpConnectToServer> &&req,
-    std::unique_ptr<EncryptedRequest> &&tun_req)
+    std::unique_ptr<EncryptedRequest> &&tun_req,
+    std::unique_ptr<LayerHttp_HttpConnectToServer> &&req)
     -> void {
 
     m_logger->info(std::format("Handling HTTP CONNECT to server {}:{}", req->server_host, req->server_port));
@@ -191,10 +191,7 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_http_connect_to_server(
 
 
 auto snet::comm_stack::layers::http::LayerHttp::handle_http_data_to_server(
-    std::string const &peer_ip,
-    std::uint16_t peer_port,
-    std::unique_ptr<LayerHttp_HttpDataToServer> &&req,
-    std::unique_ptr<EncryptedRequest> &&tun_req)
+    std::unique_ptr<LayerHttp_HttpDataToServer> &&req)
     -> void {
 
     // Wait for the routing exit point to be ready.
@@ -208,10 +205,7 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_http_data_to_server(
 
 
 auto snet::comm_stack::layers::http::LayerHttp::handle_http_data_to_client(
-    std::string const &peer_ip,
-    std::uint16_t peer_port,
-    std::unique_ptr<LayerHttp_HttpDataToClient> &&req,
-    std::unique_ptr<EncryptedRequest> &&tun_req)
+    std::unique_ptr<LayerHttp_HttpDataToClient> &&req)
     -> void {
 
     // Wait for the routing entry point to be ready.
@@ -316,5 +310,4 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_data_exchange_as_server(
     // routing_exit_point.close();
     // m_received_data_at_server.erase(m_received_data_at_server.find(client_socket_fd));
     // m_received_data_at_client.erase(m_received_data_at_client.find(client_socket_fd));
-    m_logger->info("Closed HTTP connection and cleaned up routing buffers");
 }
