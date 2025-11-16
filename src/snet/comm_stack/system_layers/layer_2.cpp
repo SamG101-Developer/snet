@@ -373,6 +373,14 @@ auto snet::comm_stack::layers::Layer2::handle_tunnel_join_accept(
 
     // Check the public key hashes to the identifier on the certificate.
     const auto peer_spk = crypt::certificate::extract_pkey_from_cert(peer_cert);
+    const auto derived_id = crypt::hash::sha3_256(crypt::asymmetric::serialize_public(peer_spk));
+    if (derived_id != peer_id) {
+        m_logger->warn(std::format("Layer2 Node ID does not match public key for node: {}", utils::to_hex(peer_id)));
+        m_route->candidate_node->state = ConnectionState::CONNECTION_CLOSED;
+        return;
+    }
+
+    // Verify the certificate of the remote node.
     if (not crypt::certificate::verify_certificate(peer_cert, peer_spk)) {
         m_logger->warn(std::format("Layer2 Certificate verification failed for node: {}", utils::to_hex(peer_id)));
         m_route->candidate_node->state = ConnectionState::CONNECTION_CLOSED;
