@@ -39,6 +39,8 @@ export namespace snet::comm_stack {
 
     struct ConnectionCache {
         inline static std::map<crypt::bytes::RawBytes, std::unique_ptr<Connection>> connections = {};
+        inline static std::map<crypt::bytes::RawBytes, openssl::EVP_PKEY*> cached_pkeys = {};
+        inline static std::map<crypt::bytes::RawBytes, openssl::X509*> cached_certs = {};
 
         inline static std::vector<std::tuple<std::string, std::uint16_t, crypt::bytes::RawBytes>> cached_nodes = {};
     };
