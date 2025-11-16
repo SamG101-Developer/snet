@@ -3,6 +3,7 @@ import serex.serialize;
 import std;
 
 import snet.crypt.bytes;
+import snet.comm_stack.dht.services;
 
 
 export namespace snet::comm_stack {
@@ -190,6 +191,172 @@ export namespace snet::comm_stack {
         }
     };
 
+    struct Layer3_PingRequest final : RawRequest {
+        std::double_t ping_ts;
+
+        Layer3_PingRequest() = default;
+
+        explicit Layer3_PingRequest(
+            const std::double_t ping_ts) :
+            ping_ts(ping_ts) {}
+
+        auto serex_type() -> std::string override {
+            return "snet.comm_stack.layers.Layer3_PingRequest";
+        }
+
+        auto serialize(serex::Archive &ar) -> void override {
+            RawRequest::serialize(ar);
+            serex::push_into_archive(ar, ping_ts);
+        }
+    };
+
+    struct Layer3_PongRequest final : RawRequest {
+        std::double_t ping_ts;
+        std::double_t pong_ts;
+
+        Layer3_PongRequest() = default;
+
+        explicit Layer3_PongRequest(
+            const std::double_t ping_ts,
+            const std::double_t pong_ts) :
+            ping_ts(ping_ts),
+            pong_ts(pong_ts) {}
+
+        auto serex_type() -> std::string override {
+            return "snet.comm_stack.layers.Layer3_PongRequest";
+        }
+
+        auto serialize(serex::Archive &ar) -> void override {
+            RawRequest::serialize(ar);
+            serex::push_into_archive(ar, ping_ts, pong_ts);
+        }
+    };
+
+    // struct Layer3_PutResourceRequest final : RawRequest {
+    //     crypt::bytes::RawBytes res_key;
+    //     crypt::bytes::RawBytes res_val;
+    //
+    //     Layer3_PutResourceRequest() = default;
+    //
+    //     Layer3_PutResourceRequest(
+    //         crypt::bytes::RawBytes res_key,
+    //         crypt::bytes::RawBytes res_val);
+    //
+    //     auto serex_type() -> std::string override {
+    //         return "snet.comm_stack.layers.Layer3_PutResourceRequest";
+    //     }
+    //
+    //     auto serialize(serex::Archive &ar) -> void override {
+    //         RawRequest::serialize(ar);
+    //         serex::push_into_archive(ar, res_key, res_val);
+    //     }
+    // };
+    //
+    // struct Layer3_GetResourceRequest final : RawRequest {
+    //     crypt::bytes::RawBytes res_key;
+    //
+    //     Layer3_GetResourceRequest() = default;
+    //
+    //     explicit Layer3_GetResourceRequest(
+    //         crypt::bytes::RawBytes res_key) :
+    //         res_key(std::move(res_key)) {}
+    //
+    //     auto serex_type() -> std::string override {
+    //         return "snet.comm_stack.layers.Layer3_GetResourceRequest";
+    //     }
+    //
+    //     auto serialize(serex::Archive &ar) -> void override {
+    //         RawRequest::serialize(ar);
+    //         serex::push_into_archive(ar, res_key);
+    //     }
+    // };
+    //
+    // struct Layer3_RetResourceSuccessRequest final : RawRequest {
+    //     crypt::bytes::RawBytes res_key;
+    //     crypt::bytes::RawBytes res_val;
+    //
+    //     Layer3_RetResourceSuccessRequest() = default;
+    //
+    //     Layer3_RetResourceSuccessRequest(
+    //         crypt::bytes::RawBytes res_key,
+    //         crypt::bytes::RawBytes res_val) :
+    //         res_key(std::move(res_key)),
+    //         res_val(std::move(res_val)) {}
+    //
+    //     auto serex_type() -> std::string override {
+    //         return "snet.comm_stack.layers.Layer3_RetResourceSuccessRequest";
+    //     }
+    //
+    //     auto serialize(serex::Archive &ar) -> void override {
+    //         RawRequest::serialize(ar);
+    //         serex::push_into_archive(ar, res_key, res_val);
+    //     }
+    // };
+    //
+    // struct Layer3_RetResourceFailureRequest final : RawRequest {
+    //     crypt::bytes::RawBytes res_key;
+    //     std::vector<std::tuple<std::string, std::uint16_t, crypt::bytes::RawBytes>> closest_node_info;
+    //
+    //     Layer3_RetResourceFailureRequest() = default;
+    //
+    //     Layer3_RetResourceFailureRequest(
+    //         crypt::bytes::RawBytes res_key,
+    //         std::vector<std::tuple<std::string, std::uint16_t, crypt::bytes::RawBytes>> closest_node_info) :
+    //         res_key(std::move(res_key)),
+    //         closest_node_info(std::move(closest_node_info)) {}
+    //
+    //     auto serex_type() -> std::string override {
+    //         return "snet.comm_stack.layers.Layer3_RetResourceFailureRequest";
+    //     }
+    //
+    //     auto serialize(serex::Archive &ar) -> void override {
+    //         RawRequest::serialize(ar);
+    //         serex::push_into_archive(ar, res_key, closest_node_info);
+    //     }
+    // };
+
+
+    struct Layer3_FindNodeRequest final : RawRequest {
+        crypt::bytes::RawBytes target_id;
+
+        Layer3_FindNodeRequest() = default;
+
+        explicit Layer3_FindNodeRequest(
+            crypt::bytes::RawBytes target_id) :
+            target_id(std::move(target_id)) {}
+
+        auto serex_type() -> std::string override {
+            return "snet.comm_stack.layers.Layer3_FindNodeRequest";
+        }
+
+        auto serialize(serex::Archive &ar) -> void override {
+            RawRequest::serialize(ar);
+            serex::push_into_archive(ar, target_id);
+        }
+    };
+
+    struct Layer3_FindNodeResponse final : RawRequest {
+        crypt::bytes::RawBytes target_id;
+        std::vector<std::tuple<std::string, std::uint16_t, crypt::bytes::RawBytes>> closest_node_info;
+
+        Layer3_FindNodeResponse() = default;
+
+        Layer3_FindNodeResponse(
+            crypt::bytes::RawBytes target_id,
+            std::vector<std::tuple<std::string, std::uint16_t, crypt::bytes::RawBytes>> closest_node_info) :
+            target_id(std::move(target_id)),
+            closest_node_info(std::move(closest_node_info)) {}
+
+        auto serex_type() -> std::string override {
+            return "snet.comm_stack.layers.Layer3_FindNodeResponse";
+        }
+
+        auto serialize(serex::Archive &ar) -> void override {
+            RawRequest::serialize(ar);
+            serex::push_into_archive(ar, target_id, closest_node_info);
+        }
+    };
+
     struct Layer2_RouteExtensionRequest final : RawRequest {
         crypt::bytes::RawBytes route_tok;
         crypt::bytes::RawBytes route_owner_epk;
@@ -275,7 +442,7 @@ export namespace snet::comm_stack {
     };
 
     struct Layer2_TunnelJoinReject final : RawRequest {
-        crypt::bytes::RawBytes route_tok;
+        crypt::bytes::RawBytes route_token;
         std::string reason;
 
         Layer2_TunnelJoinReject() = default;
@@ -283,7 +450,7 @@ export namespace snet::comm_stack {
         explicit Layer2_TunnelJoinReject(
             crypt::bytes::RawBytes route_tok,
             std::string reason) :
-            route_tok(std::move(route_tok)),
+            route_token(std::move(route_tok)),
             reason(std::move(reason)) {
         }
 
@@ -293,7 +460,7 @@ export namespace snet::comm_stack {
 
         auto serialize(serex::Archive &ar) -> void override {
             RawRequest::serialize(ar);
-            serex::push_into_archive(ar, route_tok, reason);
+            serex::push_into_archive(ar, route_token, reason);
         }
     };
 
