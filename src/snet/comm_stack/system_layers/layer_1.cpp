@@ -19,6 +19,7 @@ import snet.comm_stack.system_layers.layer_d;
 import snet.comm_stack.system_layers.layer_2;
 import snet.comm_stack.request;
 import snet.credentials.key_store_data;
+import snet.crypt.bytes;
 import snet.net.udp_socket;
 import snet.utils.encoding;
 import snet.utils.logging;
@@ -72,15 +73,15 @@ export namespace snet::comm_stack::layers {
         auto handle_application_layer_request(
             std::string const &peer_ip,
             std::uint16_t peer_port,
-            std::unique_ptr<Layer1_ApplicationLayerRequest> &&req,
-            std::unique_ptr<EncryptedRequest> &&tun_req)
+            std::unique_ptr<EncryptedRequest> &&tun_req,
+            std::unique_ptr<Layer1_ApplicationLayerRequest> &&req)
             -> void;
 
         auto handle_application_layer_response(
             std::string const &peer_ip,
             std::uint16_t peer_port,
-            std::unique_ptr<Layer1_ApplicationLayerResponse> &&req,
-            std::unique_ptr<EncryptedRequest> &&tun_req)
+            std::unique_ptr<EncryptedRequest> &&tun_req,
+            std::unique_ptr<Layer1_ApplicationLayerResponse> &&req)
             -> void;
     };
 }
@@ -110,8 +111,8 @@ auto snet::comm_stack::layers::Layer1::handle_command(
     m_logger->info("Layer2 received request of type " + req->serex_type() + " from" + FORMAT_PEER_INFO());
 
     // Map the request type to the appropriate handler.
-    MAP_TO_HANDLER(1, Layer1_ApplicationLayerRequest, true, handle_application_layer_request, std::move(tun_req));
-    MAP_TO_HANDLER(1, Layer1_ApplicationLayerResponse, true, handle_application_layer_response, std::move(tun_req));
+    MAP_TO_HANDLER(1, Layer1_ApplicationLayerRequest, true, handle_application_layer_request, peer_ip, peer_port, std::move(tun_req));
+    MAP_TO_HANDLER(1, Layer1_ApplicationLayerResponse, true, handle_application_layer_response, peer_ip, peer_port, std::move(tun_req));
 }
 
 
@@ -150,8 +151,8 @@ auto snet::comm_stack::layers::Layer1::tunnel_application_data_backwards(
 auto snet::comm_stack::layers::Layer1::handle_application_layer_request(
     std::string const &peer_ip,
     const std::uint16_t peer_port,
-    std::unique_ptr<Layer1_ApplicationLayerRequest> &&req,
-    std::unique_ptr<EncryptedRequest> &&tun_req)
+    std::unique_ptr<EncryptedRequest> &&tun_req,
+    std::unique_ptr<Layer1_ApplicationLayerRequest> &&req)
     -> void {
     // Find the correct application layer for the protocol.
     m_logger->info("Handling application layer request for protocol " + utils::decode_bytes(req->proto_name));
@@ -168,8 +169,8 @@ auto snet::comm_stack::layers::Layer1::handle_application_layer_request(
 auto snet::comm_stack::layers::Layer1::handle_application_layer_response(
     std::string const &peer_ip,
     const std::uint16_t peer_port,
-    std::unique_ptr<Layer1_ApplicationLayerResponse> &&req,
-    std::unique_ptr<EncryptedRequest> &&tun_req)
+    std::unique_ptr<EncryptedRequest> &&tun_req,
+    std::unique_ptr<Layer1_ApplicationLayerResponse> &&req)
     -> void {
     // Find the correct application layer for the protocol.
     m_logger->info("Handling application layer response for protocol " + utils::decode_bytes(req->proto_name));
