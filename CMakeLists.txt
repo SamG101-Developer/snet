@@ -13,6 +13,7 @@ set(OPENSSL_INCLUDE_DIR "/usr/local/include")
 set(OPENSSL_LIBRARIES "/usr/local/lib")
 
 # Dependencies.
+find_package(Boost 1.89.0 REQUIRED COMPONENTS preprocessor)
 find_package(PkgConfig REQUIRED)
 find_package(OpenSSL 3.6.0 REQUIRED)
 find_package(spdlog REQUIRED)
@@ -39,7 +40,7 @@ target_compile_options(
         ${PROJECT_NAME}_lib PRIVATE -fmodules-ts)
 
 target_link_libraries(
-        ${PROJECT_NAME}_lib PRIVATE OpenSSL::SSL OpenSSL::Crypto spdlog::spdlog SerEx::SerEx
+        ${PROJECT_NAME}_lib PRIVATE OpenSSL::SSL OpenSSL::Crypto spdlog::spdlog SerEx::SerEx Boost::preprocessor
         nlohmann_json::nlohmann_json CLI11::CLI11 ipaddress::ipaddress ipaddress::ipaddress-module ${DEPS_LIBRARIES})
 
 # Link the executables to the library.
