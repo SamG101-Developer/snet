@@ -40,8 +40,4 @@ snet::nodes::Node::Node(
     // Default enabled protocols.
     const auto tester_node = utils::to_hex(m_node_info->hashed_username) == "cdd5a8e37ff76bd3ec78ef8238b699c31a3f22adc5f55278a07a9b7b389960dc";
     m_comm_stack->get_layer_1()->register_protocol<comm_stack::layers::http::LayerHttp>(tester_node);
-    if (tester_node) {
-        std::cout << "THIS NODE WILL TEST ROUTING" << std::endl;
-        m_comm_stack->get_layer_2()->create_route();
-    }
 }
