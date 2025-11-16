@@ -49,10 +49,10 @@ auto snet::managers::ds::create_directory_profile(
     const auto addr = net::get_private_ipv4_address();
 
     // Check the current directory services for the name.
-    auto ds_json = ( {
+    auto ds_json = [] {
         auto ds_str = utils::read_file(constants::DIRECTORY_SERVICE_PUBLIC_FILE);
-        nlohmann::json::parse(ds_str);
-    });
+        return nlohmann::json::parse(ds_str);
+    }();
     if (ds_json.contains(username)) { return false; }
 
     // Get the next available port from the current directory services.
