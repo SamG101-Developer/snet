@@ -23,13 +23,15 @@ export namespace snet::comm_stack::layers {
         ApplicationLayerBase() : LayerBase(nullptr) {}
         ~ApplicationLayerBase() override = default;
 
-        auto initialize(
+        virtual auto initialize(
             std::shared_ptr<spdlog::logger> logger,
             Layer1 *l1,
             Layer2 *l2,
             Layer3 *l3,
             LayerD *ld,
-            Layer4 *l4) -> void;
+            Layer4 *l4) -> void final;
+
+        virtual auto setup() -> void = 0;
     };
 }
 
@@ -48,4 +50,5 @@ auto snet::comm_stack::layers::ApplicationLayerBase::initialize(
     m_l3 = l3;
     m_lD = ld;
     m_l4 = l4;
+    setup();
 }
