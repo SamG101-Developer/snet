@@ -121,8 +121,10 @@ auto snet::managers::profile::delete_profile(
     utils::write_file(constants::PROFILE_FILE, current_profiles.dump(4));
 
     // Delete the profile cache file.
-    std::filesystem::remove(constants::PROFILE_CACHE_DIR / (utils::to_hex(hashed_username) + ".json"));
-    std::filesystem::remove(constants::KEYRING_DIR / (utils::to_hex(hashed_username) + ".json"));
+    const auto file_name = utils::to_hex(hashed_username) + ".json";
+    std::filesystem::remove(constants::PROFILE_CACHE_DIR / file_name);
+    std::filesystem::remove(constants::KEYRING_DIR / file_name);
+    std::filesystem::remove(constants::DHT_STORAGE_DIR / utils::to_hex(hashed_username));
 }
 
 
@@ -149,11 +151,14 @@ auto snet::managers::profile::validate_profile(
     }
 
     // Create the cache if it doesn't exist.
-    const auto cache_path = constants::PROFILE_CACHE_DIR / (utils::to_hex(hashed_username) + ".json");
-    const auto keyring_path = constants::KEYRING_DIR / (utils::to_hex(hashed_username) + ".json");
+    const auto file_name = utils::to_hex(hashed_username) + ".json";
+    const auto cache_path = constants::PROFILE_CACHE_DIR / file_name;
+    const auto keyring_path = constants::KEYRING_DIR / file_name;
+    const auto dht_storage_path = constants::DHT_STORAGE_DIR / utils::to_hex(hashed_username);
     if (not std::filesystem::exists(cache_path)) {
         utils::write_file(cache_path, nlohmann::json::object().dump(4));
         utils::write_file(keyring_path, "");
+        std::filesystem::create_directory(dht_storage_path);
     }
 
     // Return the profile information.
