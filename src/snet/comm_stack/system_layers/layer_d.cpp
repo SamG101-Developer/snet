@@ -138,8 +138,8 @@ auto snet::comm_stack::layers::LayerD::handle_command(
         req->serex_type(), peer_ip, peer_port, utils::to_hex(req->conn_tok)));
 
     // Map the request type to the appropriate handler.
-    MAP_TO_HANDLER(D, LayerD_BootstrapRequest, m_is_directory_service, handle_bootstrap_request);
-    MAP_TO_HANDLER(D, LayerD_BootstrapResponse, not m_is_directory_service, handle_bootstrap_response);
+    MAP_TO_HANDLER(D, LayerD_BootstrapRequest, m_is_directory_service, handle_bootstrap_request, peer_ip, peer_port);
+    MAP_TO_HANDLER(D, LayerD_BootstrapResponse, not m_is_directory_service, handle_bootstrap_response, peer_ip, peer_port);
 
     // If no handler matched, log a warning.
     m_logger->warn(std::format(
