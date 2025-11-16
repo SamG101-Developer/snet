@@ -12,7 +12,7 @@ export namespace snet::utils {
     }
 
     inline auto to_hex(
-        const std::span<std::uint8_t> data) ->
+        const std::span<const std::uint8_t> data) ->
         std::string {
         // Convert each byte to its hexadecimal representation.
         static constexpr char hex_chars[] = "0123456789abcdef";
