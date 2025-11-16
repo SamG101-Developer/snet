@@ -5,6 +5,7 @@ module;
 #include <openssl/rand.h>
 #include <openssl/ssl.h>
 #include <openssl/x509.h>
+#include <openssl/kdf.h>
 
 export module openssl;
 
@@ -100,7 +101,18 @@ export namespace openssl {
     using ::EVP_DecryptFinal_ex;
     using ::EVP_CIPHER_CTX_free;
 
+#undef EVP_PKEY_HKDF
+    constexpr auto EVP_PKEY_HKDF = NID_hkdf;
+    using ::EVP_PKEY_derive_init;
+    using ::EVP_PKEY_CTX_new_id;
+    using ::EVP_PKEY_CTX_set_hkdf_md;
+    using ::EVP_PKEY_CTX_set1_hkdf_salt;
+    using ::EVP_PKEY_CTX_set1_hkdf_key;
+    using ::EVP_PKEY_CTX_add1_hkdf_info;
+    using ::EVP_PKEY_derive;
+
     using ::EVP_aes_256_ocb;
+    using ::EVP_aes_256_xts;
 #undef EVP_CTRL_AEAD_SET_IVLEN
     auto EVP_CTRL_AEAD_SET_IVLEN = 0x9;
 #undef EVP_CTRL_AEAD_GET_TAG
