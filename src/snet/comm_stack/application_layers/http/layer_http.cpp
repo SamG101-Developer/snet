@@ -29,6 +29,7 @@ export namespace snet::comm_stack::layers::http {
         std::map<std::size_t, SelectableBytesIO> m_received_data_at_client;
         std::map<std::size_t, SelectableBytesIO> m_received_data_at_server;
         bool m_enable;
+        std::condition_variable m_cv;
 
     public:
         explicit LayerHttp(
@@ -159,7 +160,12 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_proxy_request(
     m_l1->tunnel_application_data_forwards(layer_proto_name(), std::move(http_conn_req));
 
     // Create the response selectable-object that is interacted with from Layer1.
-    m_received_data_at_client[client_socket_fd] = SelectableBytesIO();
+    {
+        std::scoped_lock lock(m_mutex);
+        m_received_data_at_client[client_socket_fd] = SelectableBytesIO();
+    }
+    m_cv.notify_all();
+
     auto const &routing_entry_point = m_received_data_at_client[client_socket_fd];
     auto http_ok = utils::encode_string(HTTP_OK);
     client_socket.send(http_ok);
@@ -184,7 +190,12 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_http_connect_to_server(
     }
 
     // Save the connection against the client socket identifier.
-    m_received_data_at_server[req->client_socket_fd] = SelectableBytesIO();
+    {
+        std::scoped_lock lock(m_mutex);
+        m_received_data_at_server[req->client_socket_fd] = SelectableBytesIO();
+    }
+    m_cv.notify_all();
+
     auto const &routing_exit_point = m_received_data_at_server[req->client_socket_fd];
     handle_data_exchange_as_server(std::move(internet_sock), routing_exit_point, req->client_socket_fd, tun_req->conn_tok);
 }
@@ -196,11 +207,13 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_http_data_to_server(
 
     // Wait for the routing exit point to be ready.
     m_logger->info(std::format("Handling HTTP data to server"));
-    while (not m_received_data_at_server.contains(req->client_socket_fd)) {}
+    std::unique_lock lock(m_mutex);
+    m_cv.wait(lock, [&] {return m_received_data_at_server.contains(req->client_socket_fd); });
+    m_received_data_at_server[req->client_socket_fd].write(req->data);
+    lock.unlock();
 
     // Write the data to the correct buffer, that will be sent to the web server.
-    m_logger->info(std::format("Client ID exists => writing {} bytes to server", req->data.size()));
-    m_received_data_at_server[req->client_socket_fd].write(req->data);
+    m_logger->info(std::format("Client ID exists => written {} bytes to server", req->data.size()));
 }
 
 
@@ -210,11 +223,13 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_http_data_to_client(
 
     // Wait for the routing entry point to be ready.
     m_logger->info(std::format("Handling HTTP data to client"));
-    while (not m_received_data_at_client.contains(req->client_socket_fd)) {}
+    std::unique_lock lock(m_mutex);
+    m_cv.wait(lock, [&] {return m_received_data_at_client.contains(req->client_socket_fd); });
+    m_received_data_at_client[req->client_socket_fd].write(req->data);
+    lock.unlock();
 
     // Write the data to the correct buffer, that will be sent to the web client.
-    m_logger->info(std::format("Client ID exists => writing {} bytes to route entry buffer", req->data.size()));
-    m_received_data_at_client[req->client_socket_fd].write(req->data);
+    m_logger->info(std::format("Client ID exists => written {} bytes to route entry buffer", req->data.size()));
 }
 
 
