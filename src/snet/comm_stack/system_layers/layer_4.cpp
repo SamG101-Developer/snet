@@ -122,7 +122,7 @@ auto snet::comm_stack::layers::Layer4::connect(
 
     // Wait for the connection to be accepted or rejected.
     while (not(conn_ptr->is_accepted() or conn_ptr->is_rejected())) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
     return conn_ptr->is_accepted() ? conn_ptr : nullptr;
 }

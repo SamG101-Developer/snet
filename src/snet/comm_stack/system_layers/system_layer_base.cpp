@@ -81,7 +81,7 @@ auto snet::comm_stack::layers::SystemLayerBase::send_secure(
 
     // Queue the request until the connection is accepted.
     while (not conn->is_accepted()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
     // Create the ciphertext using the correct primary key.

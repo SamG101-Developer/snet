@@ -242,7 +242,7 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_data_exchange_as_client(
 
     while (true) {
         // Get the readable and errored sockets.
-        auto [readable, _, errored] = net::select(sockets, {}, sockets, std::chrono::seconds(1));
+        auto [readable, _, errored] = net::select(sockets, {}, sockets, std::chrono::milliseconds(100));
         if (not errored.empty()) { break; }
 
         // Forward data from readable sockets into the opposite socket.
@@ -289,7 +289,7 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_data_exchange_as_server(
 
     while (true) {
         // Get the readable and errored sockets.
-        auto [readable, _, errored] = net::select(sockets, {}, sockets, std::chrono::seconds(1));
+        auto [readable, _, errored] = net::select(sockets, {}, sockets, std::chrono::milliseconds(100));
         if (not errored.empty()) { break; }
 
         // Forward data from readable sockets into the opposite socket.
