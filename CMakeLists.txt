@@ -13,15 +13,13 @@ set(OPENSSL_INCLUDE_DIR "/usr/local/include")
 set(OPENSSL_LIBRARIES "/usr/local/lib")
 
 # Dependencies.
-find_package(Boost 1.89.0 REQUIRED COMPONENTS preprocessor)
-find_package(PkgConfig REQUIRED)
 find_package(OpenSSL 3.6.0 REQUIRED)
 find_package(spdlog REQUIRED)
+find_package(TBB REQUIRED)
 find_package(nlohmann_json 3.11.3 REQUIRED)
 find_package(CLI11 1.9.1 REQUIRED)
-find_package(ipaddress REQUIRED)
 find_package(SerEx REQUIRED)
-pkg_check_modules(DEPS REQUIRED glib-2.0 libsecret-1)
+find_package(GenEx REQUIRED)
 
 # Collect source files.
 file(GLOB_RECURSE MODULE_SOURCES CONFIGURE_DEPENDS src/*.cpp)
@@ -40,8 +38,8 @@ target_compile_options(
         ${PROJECT_NAME}_lib PRIVATE -fmodules-ts)
 
 target_link_libraries(
-        ${PROJECT_NAME}_lib PRIVATE OpenSSL::SSL OpenSSL::Crypto spdlog::spdlog SerEx::SerEx Boost::preprocessor
-        nlohmann_json::nlohmann_json CLI11::CLI11 ipaddress::ipaddress ipaddress::ipaddress-module ${DEPS_LIBRARIES})
+        ${PROJECT_NAME}_lib PRIVATE OpenSSL::SSL OpenSSL::Crypto spdlog::spdlog SerEx::SerEx GenEx::GenEx TBB::tbb
+        nlohmann_json::nlohmann_json CLI11::CLI11 ${DEPS_LIBRARIES})
 
 # Link the executables to the library.
 target_link_libraries(
