@@ -1,9 +1,9 @@
-module;
-
 export module snet.comm_stack.connection;
 import std;
 import openssl;
+
 import snet.crypt.bytes;
+import snet.utils.concurrent;
 
 
 export namespace snet::comm_stack {
@@ -38,11 +38,11 @@ export namespace snet::comm_stack {
     };
 
     struct ConnectionCache {
-        inline static std::map<crypt::bytes::RawBytes, std::unique_ptr<Connection>> connections = {};
-        inline static std::map<crypt::bytes::RawBytes, openssl::EVP_PKEY*> cached_pkeys = {};
-        inline static std::map<crypt::bytes::RawBytes, openssl::X509*> cached_certs = {};
+        inline static utils::ConcurrentHashMap<crypt::bytes::RawBytes, std::unique_ptr<Connection>, crypt::bytes::BytesHasher> connections{};
+        inline static utils::ConcurrentHashMap<crypt::bytes::RawBytes, openssl::EVP_PKEY*, crypt::bytes::BytesHasher> cached_pkeys{};
+        inline static utils::ConcurrentHashMap<crypt::bytes::RawBytes, openssl::X509*, crypt::bytes::BytesHasher> cached_certs{};
 
-        inline static std::vector<std::tuple<std::string, std::uint16_t, crypt::bytes::RawBytes>> cached_nodes = {};
+        inline static std::vector<std::tuple<std::string, std::uint16_t, crypt::bytes::RawBytes>> cached_nodes{};
     };
 }
 

@@ -1,6 +1,4 @@
 #pragma once
-#include <boost/preprocessor.hpp>
-#include <boost/preprocessor/tuple/rem.hpp>
 
 
 #define MAP_TO_HANDLER(L, ReqType, Condition, Handler, ...)                                                                 \
@@ -30,36 +28,3 @@
 
 #define FORMAT_PEER_INFO() \
     std::format(" ?@{}:{}[{}]", peer_ip, peer_port, utils::to_hex(req->conn_tok))
-
-
-#define SERIALIZE_DECL_FIELD(r, data, elem) \
-    BOOST_PP_TUPLE_ELEM(2, 0, elem) BOOST_PP_TUPLE_ELEM(2, 1, elem);
-
-#define SERIALIZE_CTOR_PARAM(r, data, elem) \
-    BOOST_PP_TUPLE_ELEM(2, 0, elem) BOOST_PP_TUPLE_ELEM(2, 1, elem)
-
-#define SERIALIZE_CTOR_INIT(r, data, elem) \
-    BOOST_PP_TUPLE_ELEM(2, 1, elem)(std::move(BOOST_PP_TUPLE_ELEM(2, 1, elem)))
-
-#define SERIALIZE_ARGS(r, data, elem) \
-    BOOST_PP_TUPLE_ELEM(2, 1, elem)
-
-#define SERIALIZE_DEFINE_REQUEST(class_name, ...)                                                                                              \
-    class class_name : public snet::comm_stack::RawRequest {                                                                                   \
-    public:                                                                                                                                    \
-        BOOST_PP_SEQ_FOR_EACH(SERIALIZE_DECL_FIELD, _, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))                                                  \
-                                                                                                                                               \
-        class_name() = default;                                                                                                                \
-        explicit class_name(                                                                                                                   \
-            BOOST_PP_SEQ_ENUM(BOOST_PP_SEQ_TRANSFORM(SERIALIZE_CTOR_PARAM, _, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)))) :                       \
-            BOOST_PP_SEQ_ENUM(BOOST_PP_SEQ_TRANSFORM(SERIALIZE_CTOR_INIT, _, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))) {}                        \
-                                                                                                                                               \
-        auto serex_type() -> std::string override {                                                                                            \
-            return std::string("snet.requests.") + #class_name;                                                                                \
-        }                                                                                                                                      \
-                                                                                                                                               \
-        auto serialize(serex::Archive &ar) -> void override {                                                                                  \
-            snet::comm_stack::RawRequest::serialize(ar);                                                                                       \
-            serex::push_into_archive(ar, BOOST_PP_SEQ_ENUM(BOOST_PP_SEQ_TRANSFORM(SERIALIZE_ARGS, _, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)))); \
-        }                                                                                                                                      \
-    };

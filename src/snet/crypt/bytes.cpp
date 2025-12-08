@@ -62,6 +62,13 @@ export namespace snet::crypt::bytes {
         return true;
     }
 
+    auto operator==(
+        const ViewBytes a,
+        const ViewBytes b) noexcept
+        -> bool {
+        return a.size() == b.size() && std::equal(a.begin(), a.end(), b.begin());
+    }
+
 
     /**
      * The @c operator!= is a no-op for @c SecureAllocator, meaning it always returns @c false. This is because
@@ -76,6 +83,24 @@ export namespace snet::crypt::bytes {
         -> bool {
         return false;
     }
+
+    struct BytesCompare {
+        static auto hash(const ViewBytes v) -> std::size_t {
+            auto h = 146527uz;
+            for (const auto b : v) h = (h * 1315423911u) ^ b;
+            return h;
+        }
+
+        static auto equal(const ViewBytes a, const ViewBytes b) -> bool {
+            return a == b;
+        }
+    };
+
+    struct BytesHasher {
+        auto operator()(const ViewBytes v) const -> std::size_t {
+            return BytesCompare::hash(v);
+        }
+    };
 }
 
 
