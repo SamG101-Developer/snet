@@ -47,4 +47,4 @@ target_link_libraries(
 
 
 # Add the test folder as a subdirectory.
-add_subdirectory(test)
+add_subdirectory(tests)
