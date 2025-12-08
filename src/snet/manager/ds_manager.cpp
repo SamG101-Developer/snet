@@ -1,20 +1,9 @@
-module;
-
-#include <genex/to_container.hpp>
-#include <genex/actions/shuffle.hpp>
-#include <genex/algorithms/contains.hpp>
-#include <genex/algorithms/max_element.hpp>
-#include <genex/algorithms/min_element.hpp>
-#include <genex/views/iota.hpp>
-#include <genex/views/map.hpp>
-#include <genex/views/remove_if.hpp>
-#include <genex/views/transform.hpp>
-
 export module snet.manager.ds_manager;
-import std;
+import genex;
 import openssl;
 import json;
 import spdlog;
+import std;
 
 import snet.constants;
 import snet.crypt.asymmetric;
@@ -61,8 +50,8 @@ auto snet::managers::ds::create_directory_profile(
         ports.insert(entry.value().at("port").get<std::uint16_t>());
     }
     if (ports.empty()) { ports.emplace(30'000); }
-    const auto port = genex::algorithms::min_element(
-        genex::views::iota(genex::algorithms::min_element(ports), static_cast<std::uint16_t>(genex::algorithms::max_element(ports) + 2))
+    const auto port = genex::min_element(
+        genex::views::iota(genex::min_element(ports), static_cast<std::uint16_t>(genex::max_element(ports) + 2))
         | genex::views::remove_if([&ports](auto &&x) { return ports.contains(x); })
         | genex::to<std::vector>());
 
@@ -110,9 +99,9 @@ auto snet::managers::ds::get_random_directory_profile(
     // Filter out the excluded usernames.
     auto available_profiles = ds_json.items()
         | genex::views::transform([](auto const &item) { return std::string(item.key()); })
-        | genex::views::remove_if([&exclude](auto &&x) { return genex::algorithms::contains(exclude, x); })
+        | genex::views::remove_if([&exclude](auto &&x) { return genex::contains(exclude, x); })
         | genex::to<std::vector>();
-    available_profiles |= genex::actions::shuffle(genex::actions::detail::default_random);
+    available_profiles |= genex::actions::shuffle;
 
     // Select a random profile from the available ones.
     if (available_profiles.empty()) {

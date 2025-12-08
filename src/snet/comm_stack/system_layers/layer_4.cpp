@@ -1,11 +1,8 @@
 module;
 #include <snet/macros.hpp>
 
-#include <genex/to_container.hpp>
-#include <genex/views/take_last.hpp>
-
-
 export module snet.comm_stack.system_layers.layer_4;
+import genex;
 import openssl;
 import serex.serialize;
 import spdlog;

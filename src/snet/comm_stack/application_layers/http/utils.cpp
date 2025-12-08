@@ -1,12 +1,5 @@
-module;
-#include <genex/to_container.hpp>
-#include <genex/algorithms/contains.hpp>
-#include <genex/views/drop.hpp>
-#include <genex/views/filter.hpp>
-#include <genex/views/split.hpp>
-#include <genex/views/transform.hpp>
-
 export module snet.comm_stack.application_layers.http.utils;
+import genex;
 import std;
 import sys;
 
@@ -68,7 +61,7 @@ export namespace snet::comm_stack::layers::http {
             auto hs_vec = m_http
                 | genex::views::split('\n')
                 | genex::views::drop(1)
-                | genex::views::filter([](auto const &line) { return genex::algorithms::contains(line, ':'); })
+                | genex::views::filter([](auto const &line) { return genex::contains(line, ':'); })
                 | genex::views::transform([](auto const &line) {
                     auto sub_parts = line | genex::views::split(':') | genex::to<std::vector>();
                     auto pair = std::make_pair(sub_parts[0] | genex::to<std::string>(), sub_parts[1] | genex::to<std::string>());

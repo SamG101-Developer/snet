@@ -1,10 +1,6 @@
-module;
-#include <snet/macros.hpp>
-
-#include <genex/algorithms/contains.hpp>
-
 export module snet.comm_stack.application_layers.bfsp.layer_bfsp;
 import openssl;
+import genex;
 import serex.serialize;
 import spdlog;
 import std;

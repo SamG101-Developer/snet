@@ -1,13 +1,5 @@
-module;
-
-#include <genex/to_container.hpp>
-#include <genex/algorithms/contains.hpp>
-#include <genex/algorithms/max_element.hpp>
-#include <genex/algorithms/min_element.hpp>
-#include <genex/views/iota.hpp>
-#include <genex/views/remove_if.hpp>
-
 export module snet.manager.profile_manager;
+import genex;
 import json;
 import openssl;
 import spdlog;
@@ -82,8 +74,8 @@ auto snet::managers::profile::create_profile(
         ports.insert(entry.value().at("port").get<std::uint16_t>());
     }
     if (ports.empty()) { ports.insert(40'000); }
-    const auto port = genex::algorithms::min_element(
-        genex::views::iota(genex::algorithms::min_element(ports), static_cast<std::uint16_t>(genex::algorithms::max_element(ports) + 2))
+    const auto port = genex::min_element(
+        genex::views::iota(genex::min_element(ports), static_cast<std::uint16_t>(genex::max_element(ports) + 2))
         | genex::views::remove_if([&ports](auto &&x) { return ports.contains(x); })
         | genex::to<std::vector>());
 

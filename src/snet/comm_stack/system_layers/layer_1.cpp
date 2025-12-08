@@ -1,12 +1,8 @@
 module;
-
 #include <snet/macros.hpp>
 
-#include <genex/algorithms/find_if.hpp>
-#include <genex/views/materialize.hpp>
-#include <genex/views/ptr.hpp>
-
 export module snet.comm_stack.system_layers.layer_1;
+import genex;
 import serex.serialize;
 import spdlog;
 import std;
@@ -156,7 +152,7 @@ auto snet::comm_stack::layers::Layer1::handle_application_layer_request(
     -> void {
     // Find the correct application layer for the protocol.
     m_logger->info("Handling application layer request for protocol " + utils::decode_bytes(req->proto_name));
-    const auto layer = *genex::algorithms::find_if(
+    const auto layer = *genex::find_if(
         m_application_layers | genex::views::ptr | genex::views::materialize,
         [&req](auto const &l) { return l->layer_proto_name() == utils::decode_bytes(req->proto_name); });
 
@@ -174,7 +170,7 @@ auto snet::comm_stack::layers::Layer1::handle_application_layer_response(
     -> void {
     // Find the correct application layer for the protocol.
     m_logger->info("Handling application layer response for protocol " + utils::decode_bytes(req->proto_name));
-    const auto layer = *genex::algorithms::find_if(
+    const auto layer = *genex::find_if(
         m_application_layers | genex::views::ptr | genex::views::materialize,
         [&req](auto const &l) { return l->layer_proto_name() == utils::decode_bytes(req->proto_name); });
 

@@ -1,22 +1,8 @@
 module;
 #include <snet/macros.hpp>
 
-#include <genex/to_container.hpp>
-#include <genex/actions/pop_front.hpp>
-#include <genex/actions/remove.hpp>
-#include <genex/actions/shuffle.hpp>
-#include <genex/actions/sort.hpp>
-#include <genex/actions/take.hpp>
-#include <genex/algorithms/all_of.hpp>
-#include <genex/algorithms/contains.hpp>
-#include <genex/algorithms/position.hpp>
-#include <genex/operations/tuple.hpp>
-#include <genex/views/filter.hpp>
-#include <genex/views/join.hpp>
-#include <genex/views/take.hpp>
-#include <genex/views/transform.hpp>
-
 export module snet.comm_stack.system_layers.layer_3;
+import genex;
 import serex.serialize;
 import spdlog;
 import std;
@@ -65,10 +51,10 @@ export namespace snet::comm_stack::layers {
         explicit NodeLookup(crypt::bytes::RawBytes id) :
             target_id(std::move(id)) {}
 
-        NodeLookup(NodeLookup &&) noexcept :
-            target_id(std::move(target_id)),
-            closest_node(closest_node),
-            queried_nodes(std::move(queried_nodes)) {}
+        NodeLookup(NodeLookup &&other) noexcept :
+            target_id(std::move(other.target_id)),
+            closest_node(other.closest_node),
+            queried_nodes(std::move(other.queried_nodes)) {}
 
         auto operator=(NodeLookup &&other) noexcept -> NodeLookup& {
             target_id = std::move(other.target_id);
@@ -206,10 +192,10 @@ auto snet::comm_stack::layers::Layer3::closest_k_nodes_to(
         | genex::views::transform([&target_id](auto *node) { return std::make_tuple(node_distance(target_id, node->peer_id), node); })
         | genex::to<std::vector>();
 
-    node_distances |= genex::actions::sort({}, genex::operations::get<0>);
+    node_distances |= genex::actions::sort({}, genex::get<0>);
     const auto closest_nodes = node_distances
         | genex::views::take(constants::DHT_K_VALUE)
-        | genex::views::transform(genex::operations::get<1>)
+        | genex::views::transform(genex::get<1>)
         | genex::to<KBucket>();
     return closest_nodes;
 }
@@ -286,8 +272,8 @@ auto snet::comm_stack::layers::Layer3::update_k_buckets(
 
     // If the node is already in the k-bucket, move it to the tail.
     const auto k_bucket_ids = k_bucket | genex::views::transform(&Connection::peer_id) | genex::to<std::vector>();
-    if (genex::algorithms::contains(k_bucket_ids, connection->peer_id)) {
-        const auto node_index = genex::algorithms::position(k_bucket_ids, genex::operations::eq_fixed(connection->peer_id));
+    if (genex::contains(k_bucket_ids, connection->peer_id)) {
+        const auto node_index = genex::position(k_bucket_ids, genex::operations::eq_fixed(connection->peer_id));
         k_bucket.emplace_back(k_bucket[node_index]);
         k_bucket.erase(k_bucket.begin() + node_index);
     }
@@ -311,12 +297,12 @@ auto snet::comm_stack::layers::Layer3::update_k_buckets(
         send_secure(head_node, std::move(req));
 
         // Wait for the ping response, or until the timeout.
-        while (genex::algorithms::contains(m_ping_queue, time_node_pair) and std::chrono::steady_clock::now() - cur_time < PING_TIMEOUT_MS) {
+        while (genex::contains(m_ping_queue, time_node_pair) and std::chrono::steady_clock::now() - cur_time < PING_TIMEOUT_MS) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
 
         // If the ping response was not received, remove the head node from the k-bucket.
-        if (genex::algorithms::contains(m_ping_queue, time_node_pair)) {
+        if (genex::contains(m_ping_queue, time_node_pair)) {
             m_logger->info("Removing unresponsive node from k-bucket");
             k_bucket |= genex::actions::pop_front();
             m_ping_queue |= genex::actions::remove(time_node_pair);
@@ -479,7 +465,7 @@ auto snet::comm_stack::layers::Layer3::handle_find_node_response(
     // If all the closest nodes have already been queried, return.
     const auto known_nodes = all_known_nodes();
     const auto nodes = req->closest_node_info
-        | genex::views::filter([&known_nodes](auto const &node_info) { return not genex::algorithms::contains(known_nodes, genex::operations::get<2>(node_info), &Connection::peer_id); })
+        | genex::views::filter([&known_nodes](auto const &node_info) { return not genex::contains(known_nodes, genex::get<2>(node_info), &Connection::peer_id); })
         | genex::to<std::vector>();
 
     // If there are no new nodes to query, return.
@@ -495,10 +481,10 @@ auto snet::comm_stack::layers::Layer3::handle_find_node_response(
 
     // If all the nodes are further away than the closest known node, query all other k nodes.
     const auto distances = nodes
-        | genex::views::transform([&target_id](auto const &node_info) { return node_distance(target_id, genex::operations::get<2>(node_info)); })
+        | genex::views::transform([&target_id](auto const &node_info) { return node_distance(target_id, genex::get<2>(node_info)); })
         | genex::to<std::vector>();
 
-    if (genex::algorithms::all_of(distances, genex::operations::gt_fixed(active_lookup->closest_distance()))) {
+    if (genex::all_of(distances, genex::operations::gt_fixed(active_lookup->closest_distance()))) {
         for (auto const &node : nodes) {
             auto [node_ip, node_port, node_id] = node;
             std::jthread(&Layer3::recursive_search, this, node_ip, node_port, node_id, target_id).detach();

@@ -1,10 +1,8 @@
 module;
 #include <snet/macros.hpp>
 
-#include <genex/actions/remove_if.hpp>
-#include <genex/algorithms/contains.hpp>
-
 export module snet.comm_stack.system_layers.layer_d;
+import genex;
 import json;
 import openssl;
 import spdlog;
@@ -226,7 +224,7 @@ auto snet::comm_stack::layers::LayerD::handle_bootstrap_response(
     // Add the nodes from the response to the cache.
     const auto nodes = serex::load<decltype(ConnectionCache::cached_nodes)>(utils::decode_bytes(req->node_info));
     for (auto const &node : nodes) {
-        if (not genex::algorithms::contains(ConnectionCache::cached_nodes, std::get<2>(node), [](auto const &entry) { return std::get<2>(entry); })) {
+        if (not genex::contains(ConnectionCache::cached_nodes, std::get<2>(node), [](auto const &entry) { return std::get<2>(entry); })) {
             ConnectionCache::cached_nodes.emplace_back(node);
         }
     }

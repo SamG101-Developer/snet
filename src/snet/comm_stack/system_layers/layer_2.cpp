@@ -1,15 +1,8 @@
 module;
 #include <snet/macros.hpp>
 
-#include <genex/to_container.hpp>
-#include <genex/actions/remove_if.hpp>
-#include <genex/actions/shuffle.hpp>
-#include <genex/views/concat.hpp>
-#include <genex/views/materialize.hpp>
-#include <genex/views/ptr.hpp>
-#include <genex/views/reverse.hpp>
-
 export module snet.comm_stack.system_layers.layer_2;
+import genex;
 import serex.serialize;
 import spdlog;
 import std;
@@ -29,6 +22,7 @@ import snet.crypt.random;
 import snet.crypt.symmetric;
 import snet.crypt.timestamp;
 import snet.net.udp_socket;
+import snet.utils.concurrent;
 import snet.utils.encoding;
 import snet.utils.logging;
 
@@ -44,9 +38,9 @@ export namespace snet::comm_stack::layers {
 
     class Layer2 final : SystemLayerBase {
         std::unique_ptr<Route> m_route;
-        std::map<crypt::bytes::RawBytes, crypt::bytes::RawBytes> m_route_forward_token_map;
-        std::map<crypt::bytes::RawBytes, crypt::bytes::RawBytes> m_route_reverse_token_map;
-        std::map<crypt::bytes::RawBytes, crypt::bytes::SecureBytes> m_participating_route_keys;
+        utils::ConcurrentHashMap<crypt::bytes::RawBytes, crypt::bytes::RawBytes, crypt::bytes::BytesHasher> m_route_forward_token_map;
+        utils::ConcurrentHashMap<crypt::bytes::RawBytes, crypt::bytes::RawBytes, crypt::bytes::BytesHasher> m_route_reverse_token_map;
+        utils::ConcurrentHashMap<crypt::bytes::RawBytes, crypt::bytes::SecureBytes, crypt::bytes::BytesHasher> m_participating_route_keys;
         Connection *m_self_conn = nullptr;
 
         Layer3 *m_l3 = nullptr;
@@ -167,7 +161,7 @@ auto snet::comm_stack::layers::Layer2::create_route()
 
     // For each hop in the route, create a connection to the next node.
     while (m_route->nodes.size() < HOP_COUNT + 1) {
-        cache |= genex::actions::shuffle(genex::actions::detail::default_random);
+        cache |= genex::actions::shuffle;
 
         // Pop a candidate node from the cache to use for the route.
         auto cand_info = cache.back();
@@ -275,7 +269,8 @@ auto snet::comm_stack::layers::Layer2::send_tunnel_backward(
     // Encrypt and send the request to the previous node in the route.
     attach_metadata(prev_conn, req.get());
     auto ct = crypt::symmetric::encrypt(
-        m_participating_route_keys.at(prev_conn->conn_tok), utils::encode_string<true>(serex::save(req)));
+        m_participating_route_keys[prev_conn->conn_tok],
+        utils::encode_string<true>(serex::save(req)));
     auto enc_req = std::make_unique<EncryptedRequest>(utils::encode_string(serex::save(ct)));
     attach_metadata(prev_conn, enc_req.get());
 
@@ -412,8 +407,8 @@ auto snet::comm_stack::layers::Layer2::handle_tunnel_join_reject(
 
     // If the route token is not for this node's route, tunnel the request backwards.
     if (m_route == nullptr or m_route->candidate_node->conn_tok != req->route_token) {
-        auto prev_conn_tok = m_route_reverse_token_map[req->conn_tok];
-        const auto prev_conn = ConnectionCache::connections[std::move(prev_conn_tok)].get();
+        const auto prev_conn_tok = m_route_reverse_token_map[req->conn_tok];
+        const auto prev_conn = ConnectionCache::connections[prev_conn_tok].get();
         send_tunnel_backward(prev_conn, std::move(req));
         return;
     }
@@ -448,14 +443,14 @@ auto snet::comm_stack::layers::Layer2::handle_tunnel_data_backward(
         m_logger->info("Layer2 forwarding data backwards" + FORMAT_CONN_INFO(prev_conn));
 
         attach_metadata(prev_conn, req.get());
-        auto ct = crypt::symmetric::encrypt(m_participating_route_keys[prev_conn->conn_tok], utils::encode_string<true>(serex::save(req)));
+        auto ct = crypt::symmetric::encrypt(
+            m_participating_route_keys[prev_conn->conn_tok],
+            utils::encode_string<true>(serex::save(req)));
         auto enc_req = std::make_unique<EncryptedRequest>(utils::encode_string(serex::save(ct)));
         enc_req->conn_tok = req->conn_tok;
-        std::cout << "HERE" << std::endl;
 
         auto wrapped_req = std::make_unique<Layer2_TunnelDataBackward>(utils::encode_string(serex::save(enc_req)));
         send_secure(prev_conn, std::move(wrapped_req));
-        std::cout << "HERE2" << std::endl;
         return;
     }
 
