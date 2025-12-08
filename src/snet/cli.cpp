@@ -1,8 +1,7 @@
-module;
-#include <CLI/CLI.hpp>
-
 export module snet.cli;
 import snet.manager.cmd_handler;
+import cli11;
+import std;
 
 
 export namespace snet::cli {
@@ -11,7 +10,7 @@ export namespace snet::cli {
 
 
 auto snet::cli::create_cli(const int argc, char **argv) -> int {
-    CLI::App app{"A distributed anonymous overlay network"};
+    cli11::App app{"A distributed anonymous overlay network"};
 
     // Subcommands
     const auto profiles = app.add_subcommand("profiles", "Manage profiles using the network");
@@ -41,7 +40,7 @@ auto snet::cli::create_cli(const int argc, char **argv) -> int {
     // Directory command options
     directory->add_option("--name", username, "Name of directory node")->required();
 
-    CLI11_PARSE(app, argc, argv);
+    app.parse(argc, argv);
 
     if (create_profile->parsed()) {
         std::cout << "Creating profile: " << username << "\n";

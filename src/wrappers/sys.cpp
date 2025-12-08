@@ -5,9 +5,12 @@ module;
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #else
-#include <netdb.h>
-#include <unistd.h>
 #include <arpa/inet.h>
+#include <ifaddrs.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <net/if.h>
+#include <unistd.h>
 #include <sys/file.h>
 #include <sys/select.h>
 #include <sys/socket.h>
@@ -17,13 +20,36 @@ module;
 export module sys;
 
 
+// <cerrno>
+export namespace sys {
+    auto get_errno() -> int {
+#ifdef _WIN32
+        return WSAGetLastError();
+#else
+        return errno;
+#endif
+    }
+}
+
+
+// <ifaddrs.h>
+export namespace sys {
+    using ::ifaddrs;
+    using ::getifaddrs;
+    using ::freeifaddrs;
+
+#undef IFF_UP
+    constexpr auto IFF_UP = 0x1;
+}
+
+
 // <sys/file.h>
 export namespace sys {
     using ::flock;
 }
 
 
-// <sys/socket.h>
+// <sys/socket.h> | <netinet/in.h>
 export namespace sys {
     using socket_t = int;
     using ::socklen_t;

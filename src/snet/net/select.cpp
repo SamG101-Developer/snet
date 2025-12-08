@@ -1,6 +1,3 @@
-module;
-#include <cerrno>
-
 export module snet.net.select;
 import std;
 import sys;
@@ -58,7 +55,7 @@ auto snet::net::select(
 
     // Call select
     if (sys::select(max_fd + 1, &read_set, &write_set, &except_set, tv_ptr) < 0) {
-        throw std::system_error(errno, std::system_category(), "Select call failed");
+        throw std::system_error(sys::get_errno(), std::system_category(), "Select call failed");
     }
 
     // Collect ready fds

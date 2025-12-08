@@ -1,6 +1,3 @@
-module;
-#include <cerrno>
-
 export module snet.net.tcp_socket;
 import std;
 import sys;
@@ -60,7 +57,7 @@ auto snet::net::TCPSocket::listen(
     const std::int32_t backlog) const
     -> void {
     if (sys::listen(socket_fd, backlog) < 0) {
-        throw std::system_error(errno, std::system_category(), "Failed to listen on socket");
+        throw std::system_error(sys::get_errno(), std::system_category(), "Failed to listen on socket");
     }
 }
 
@@ -70,7 +67,7 @@ auto snet::net::TCPSocket::accept() const
     // Accept a new connection.
     const auto client_fd = sys::accept(socket_fd, nullptr, nullptr);
     if (client_fd < 0) {
-        throw std::system_error(errno, std::system_category(), "Failed to accept connection");
+        throw std::system_error(sys::get_errno(), std::system_category(), "Failed to accept connection");
     }
     return TCPSocket(client_fd);
 }
@@ -89,7 +86,7 @@ auto snet::net::TCPSocket::send(
     while (total_sent < data_size) {
         const auto sent = sys::send(socket_fd, buffer.data() + total_sent, data_size - total_sent, 0);
         if (sent <= 0) {
-            throw std::system_error(errno, std::system_category(), "Failed to send data");
+            throw std::system_error(sys::get_errno(), std::system_category(), "Failed to send data");
         }
         total_sent += static_cast<std::size_t>(sent);
     }
@@ -104,7 +101,7 @@ auto snet::net::TCPSocket::recv() const
     while (true) {
         const auto recv_len = sys::recv(socket_fd, temp_buffer.data(), temp_buffer.size(), 0);
         if (recv_len < 0) {
-            throw std::system_error(errno, std::system_category(), "Failed to receive data");
+            throw std::system_error(sys::get_errno(), std::system_category(), "Failed to receive data");
         }
         if (recv_len == 0) {
             break; // Connection closed

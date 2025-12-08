@@ -1,6 +1,3 @@
-module;
-#include <cerrno>
-
 export module snet.net.udp_socket;
 import std;
 import sys;
@@ -56,7 +53,7 @@ auto snet::net::UDPSocket::send(
     addr.sin_family = sys::AF_INET;
     addr.sin_port = sys::htons(port);
     if (sys::inet_pton(sys::AF_INET, ip.c_str(), &addr.sin_addr) <= 0) {
-        throw std::system_error(errno, std::system_category(), "Invalid IP address: " + ip);
+        throw std::system_error(sys::get_errno(), std::system_category(), "Invalid IP address: " + ip);
     }
 
     // Split the data into fragments if necessary (minimum 1 fragment).
@@ -92,7 +89,7 @@ auto snet::net::UDPSocket::send(
             reinterpret_cast<sys::sockaddr*>(&addr), sizeof(addr));
 
         if (sent < 0 or sent != static_cast<sys::ssize_t>(fragment_buffer.size())) {
-            throw std::system_error(errno, std::system_category(), "Failed to send fragment to " + ip + ":" + std::to_string(port));
+            throw std::system_error(sys::get_errno(), std::system_category(), "Failed to send fragment to " + ip + ":" + std::to_string(port));
         }
     }
 }
@@ -130,7 +127,7 @@ auto snet::net::UDPSocket::internal_recv()
 
         // Handle errors and incomplete data.
         if (recv_len <= 0) {
-            throw std::system_error(errno, std::system_category(), "Failed to receive data");
+            throw std::system_error(sys::get_errno(), std::system_category(), "Failed to receive data");
         }
 
         if (static_cast<std::size_t>(recv_len) < sizeof(FragHeader)) {
@@ -236,7 +233,7 @@ auto snet::net::UDPSocket::internal_cleanup()
             const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - message.first_received);
 
             // Timed out => erase the message.
-            if (duration.count() >= TIMEOUT_MS / 1000) {
+            if (duration.count() >= TIMEOUT_MS) {
                 it = m_messages_in_progress.erase(it);
             }
 

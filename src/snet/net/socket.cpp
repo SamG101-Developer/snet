@@ -1,7 +1,3 @@
-module;
-#include <cerrno>
-
-
 export module snet.net.socket;
 import std;
 import sys;
@@ -52,13 +48,13 @@ snet::net::Socket::Socket(
 
     // If socket creation failed, throw an error.
     if (socket_fd == static_cast<sys::socket_t>(-1)) {
-        throw std::system_error(errno, std::system_category(), "Failed to create socket");
+        throw std::system_error(sys::get_errno(), std::system_category(), "Failed to create socket");
     }
 
     // Set socket options standard for all sockets.
     constexpr auto opt = 1;
     if (sys::setsockopt(socket_fd, sys::SOL_SOCKET, sys::SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
-        throw std::system_error(errno, std::system_category(), "Failed to set socket options");
+        throw std::system_error(sys::get_errno(), std::system_category(), "Failed to set socket options");
     }
 }
 
@@ -101,7 +97,7 @@ auto snet::net::Socket::bind(
     addr.sin_addr = sys::INADDR_ANY;
 
     if (sys::bind(socket_fd, reinterpret_cast<sys::sockaddr*>(&addr), sizeof(addr)) < 0) {
-        throw std::system_error(errno, std::system_category(), "Failed to bind socket to port " + std::to_string(port));
+        throw std::system_error(sys::get_errno(), std::system_category(), "Failed to bind socket to port " + std::to_string(port));
     }
 }
 
@@ -109,7 +105,7 @@ auto snet::net::Socket::bind(
 auto snet::net::Socket::close() -> void {
     if (socket_fd >= 0) {
         if (sys::close(socket_fd) < 0) {
-            throw std::system_error(errno, std::system_category(), "Failed to close socket");
+            throw std::system_error(sys::get_errno(), std::system_category(), "Failed to close socket");
         }
         socket_fd = -1;
     }
@@ -122,7 +118,7 @@ template <typename S>
 auto snet::net::socket_pair() -> std::pair<S, S> {
     int sv[2];
     if (sys::socketpair(sys::AF_UNIX, sys::SOCK_STREAM, 0, sv) == -1) {
-        throw std::system_error(errno, std::system_category(), "Failed to create socket pair");
+        throw std::system_error(sys::get_errno(), std::system_category(), "Failed to create socket pair");
     }
     return {S(sv[0]), S(sv[1])};
 }
