@@ -151,6 +151,11 @@ auto snet::comm_stack::CommStack::process_listen_result(
     std::uint16_t peer_port) const
     -> void {
     auto req = serex::load<RawRequest*>(utils::decode_bytes(data));
+    if (req == nullptr) {
+        m_logger->warn("Received null request from" + FORMAT_PEER_INFO());
+        return;
+    }
+
     auto tunnel_response = std::unique_ptr<EncryptedRequest>(nullptr);
     const auto tok = req->conn_tok;
     m_logger->debug("CommStack processing request" + FORMAT_PEER_INFO());
