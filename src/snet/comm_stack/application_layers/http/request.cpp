@@ -10,7 +10,7 @@ import snet.crypt.bytes;
 export namespace snet::comm_stack::layers::http {
     struct LayerHttp_HttpConnectToServer final : RawRequest {
         sys::socket_t client_socket_fd = -1;
-        std::string server_host;
+        std::string server_host = {};
         std::uint16_t server_port = 0;
 
         LayerHttp_HttpConnectToServer() = default;
@@ -36,7 +36,7 @@ export namespace snet::comm_stack::layers::http {
 
     struct LayerHttp_HttpDataToServer final : RawRequest {
         sys::socket_t client_socket_fd = 0;
-        crypt::bytes::RawBytes data;
+        crypt::bytes::RawBytes data = {};
 
         LayerHttp_HttpDataToServer() = default;
 
@@ -59,7 +59,7 @@ export namespace snet::comm_stack::layers::http {
 
     struct LayerHttp_HttpDataToClient final : RawRequest {
         sys::socket_t client_socket_fd = 0;
-        crypt::bytes::RawBytes data;
+        crypt::bytes::RawBytes data = {};
 
         LayerHttp_HttpDataToClient() = default;
 

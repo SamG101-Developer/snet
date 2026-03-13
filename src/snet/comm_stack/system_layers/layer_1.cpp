@@ -153,12 +153,12 @@ auto snet::comm_stack::layers::Layer1::handle_application_layer_request(
     // Find the correct application layer for the protocol.
     m_logger->info("Handling application layer request for protocol " + utils::decode_bytes(req->proto_name));
     const auto layer = *genex::find_if(
-        m_application_layers | genex::views::ptr | genex::views::materialize,
+        m_application_layers | genex::views::ptr | genex::to<std::vector>(),
         [&req](auto const &l) { return l->layer_proto_name() == utils::decode_bytes(req->proto_name); });
 
     // Send the command into the application layer.
     layer->handle_command(
-        peer_ip, peer_port, serex::load<RawRequest*>(utils::decode_bytes(req->req_serialized)), std::move(tun_req));
+        peer_ip, peer_port, serex::load_poly<RawRequest>(utils::decode_bytes(req->req_serialized)), std::move(tun_req));
 }
 
 
@@ -171,10 +171,10 @@ auto snet::comm_stack::layers::Layer1::handle_application_layer_response(
     // Find the correct application layer for the protocol.
     m_logger->info("Handling application layer response for protocol " + utils::decode_bytes(req->proto_name));
     const auto layer = *genex::find_if(
-        m_application_layers | genex::views::ptr | genex::views::materialize,
+        m_application_layers | genex::views::ptr | genex::to<std::vector>(),
         [&req](auto const &l) { return l->layer_proto_name() == utils::decode_bytes(req->proto_name); });
 
     // Send the command into the application layer.
     layer->handle_command(
-        peer_ip, peer_port, serex::load<RawRequest*>(utils::decode_bytes(req->resp_serialized)), std::move(tun_req));
+        peer_ip, peer_port, serex::load_poly<RawRequest>(utils::decode_bytes(req->resp_serialized)), std::move(tun_req));
 }

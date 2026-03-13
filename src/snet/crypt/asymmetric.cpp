@@ -12,8 +12,8 @@ constexpr auto KEM_SCHEME = "ML-KEM-1024";
 
 export namespace snet::crypt::asymmetric {
     struct CipherText {
-        bytes::RawBytes ct;
-        bytes::SecureBytes ss;
+        bytes::RawBytes ct = {};
+        bytes::SecureBytes ss = {};
     };
 
     struct AAD {

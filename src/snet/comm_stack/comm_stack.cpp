@@ -137,7 +137,7 @@ auto snet::comm_stack::CommStack::listen() const
     m_logger->info("CommStack listener thread started");
     // Listen for incoming raw requests, and handle them in a new thread.
     while (true) {
-        const auto [data, peer_ip, peer_port] = m_sock->recv();
+        auto [data, peer_ip, peer_port] = m_sock->recv();
         std::jthread([this, data = std::move(data), peer_ip = std::move(peer_ip), peer_port]() mutable {
             process_listen_result(std::move(data), std::move(peer_ip), peer_port);
         }).detach();
@@ -150,7 +150,7 @@ auto snet::comm_stack::CommStack::process_listen_result(
     std::string &&peer_ip,
     std::uint16_t peer_port) const
     -> void {
-    auto req = serex::load<RawRequest*>(utils::decode_bytes(data));
+    auto req = serex::load_poly<RawRequest>(utils::decode_bytes(data));
     if (req == nullptr) {
         m_logger->warn("Received null request from" + FORMAT_PEER_INFO());
         return;
@@ -168,7 +168,7 @@ auto snet::comm_stack::CommStack::process_listen_result(
 
         const auto e2e_key = *ConnectionCache::connections[tok]->e2e_key;
         const auto raw_data = crypt::symmetric::decrypt(e2e_key, ct, iv, tag);
-        req = serex::load<RawRequest*>(utils::decode_bytes(raw_data));
+        req = serex::load_poly<RawRequest>(utils::decode_bytes(raw_data));
     }
 
     // If the secure request's token is unknown, log a warning and continue.
@@ -187,7 +187,7 @@ auto snet::comm_stack::CommStack::process_listen_result(
 
         // Decrypt and load the inner request object.
         auto raw_data = crypt::symmetric::decrypt(e2e_key, ct2, iv2, tag2);
-        req = serex::load<RawRequest*>(utils::decode_bytes(raw_data));
+        req = serex::load_poly<RawRequest>(utils::decode_bytes(raw_data));
     }
 
     while (not all_layers_ready()) {
@@ -195,21 +195,23 @@ auto snet::comm_stack::CommStack::process_listen_result(
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 
-    MASTER_HANDLER(Layer4_ConnectionRequest, m_l4);
-    MASTER_HANDLER(Layer4_ConnectionAccept, m_l4);
-    MASTER_HANDLER(Layer4_ConnectionAck, m_l4);
-    MASTER_HANDLER(Layer4_ConnectionClose, m_l4);
+    {
+        MASTER_HANDLER(Layer4_ConnectionRequest, m_l4);
+        MASTER_HANDLER(Layer4_ConnectionAccept, m_l4);
+        MASTER_HANDLER(Layer4_ConnectionAck, m_l4);
+        MASTER_HANDLER(Layer4_ConnectionClose, m_l4);
 
-    MASTER_HANDLER(LayerD_BootstrapRequest, m_ld);
-    MASTER_HANDLER(LayerD_BootstrapResponse, m_ld);
+        MASTER_HANDLER(LayerD_BootstrapRequest, m_ld);
+        MASTER_HANDLER(LayerD_BootstrapResponse, m_ld);
 
-    MASTER_HANDLER(Layer2_RouteExtensionRequest, m_l2, tunnel_response);
-    MASTER_HANDLER(Layer2_TunnelJoinRequest, m_l2);
-    MASTER_HANDLER(Layer2_TunnelJoinReject, m_l2);
-    MASTER_HANDLER(Layer2_TunnelJoinAccept, m_l2);
-    MASTER_HANDLER(Layer2_TunnelDataForward, m_l2, tunnel_response);
-    MASTER_HANDLER(Layer2_TunnelDataBackward, m_l2);
+        MASTER_HANDLER(Layer2_RouteExtensionRequest, m_l2, tunnel_response);
+        MASTER_HANDLER(Layer2_TunnelJoinRequest, m_l2);
+        MASTER_HANDLER(Layer2_TunnelJoinReject, m_l2);
+        MASTER_HANDLER(Layer2_TunnelJoinAccept, m_l2);
+        MASTER_HANDLER(Layer2_TunnelDataForward, m_l2, tunnel_response);
+        MASTER_HANDLER(Layer2_TunnelDataBackward, m_l2);
 
-    MASTER_HANDLER(Layer1_ApplicationLayerRequest, m_l1, tunnel_response);
-    MASTER_HANDLER(Layer1_ApplicationLayerResponse, m_l1, tunnel_response);
+        MASTER_HANDLER(Layer1_ApplicationLayerRequest, m_l1, tunnel_response);
+        MASTER_HANDLER(Layer1_ApplicationLayerResponse, m_l1, tunnel_response);
+    }
 }

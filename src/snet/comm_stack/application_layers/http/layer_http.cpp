@@ -157,7 +157,9 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_proxy_request(
     // Create the CONNECT request object and send it through the route.
     const auto client_socket_fd = client_socket.fileno();
     auto http_conn_req = std::make_unique<LayerHttp_HttpConnectToServer>(client_socket_fd, std::move(host), port);
-    m_l1->tunnel_application_data_forwards(layer_proto_name(), std::move(http_conn_req));
+    std::jthread([this, req = std::move(http_conn_req)]() mutable {
+        m_l1->tunnel_application_data_forwards(layer_proto_name(), std::move(req));
+    }).detach();
 
     // Create the response selectable-object that is interacted with from Layer1.
     {
@@ -179,7 +181,6 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_http_connect_to_server(
     std::unique_ptr<EncryptedRequest> &&tun_req,
     std::unique_ptr<LayerHttp_HttpConnectToServer> &&req)
     -> void {
-
     m_logger->info(std::format("Handling HTTP CONNECT to server {}:{}", req->server_host, req->server_port));
 
     // Create a connection to the web server over secure HTTP port 443.
@@ -204,15 +205,18 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_http_connect_to_server(
 auto snet::comm_stack::layers::http::LayerHttp::handle_http_data_to_server(
     std::unique_ptr<LayerHttp_HttpDataToServer> &&req)
     -> void {
-
     // Wait for the routing exit point to be ready.
     m_logger->info(std::format("Handling HTTP data to server"));
-    std::unique_lock lock(m_mutex);
-    m_cv.wait(lock, [&] {return m_received_data_at_server.contains(req->client_socket_fd); });
-    m_received_data_at_server[req->client_socket_fd].write(req->data);
-    lock.unlock();
+
+    auto buf_ptr = static_cast<SelectableBytesIO*>(nullptr);
+    {
+        std::unique_lock lock(m_mutex);
+        m_cv.wait(lock, [&] { return m_received_data_at_server.contains(req->client_socket_fd); });
+        buf_ptr = &m_received_data_at_server[req->client_socket_fd];
+    }
 
     // Write the data to the correct buffer, that will be sent to the web server.
+    buf_ptr->write(req->data);
     m_logger->info(std::format("Client ID exists => written {} bytes to server", req->data.size()));
 }
 
@@ -220,15 +224,18 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_http_data_to_server(
 auto snet::comm_stack::layers::http::LayerHttp::handle_http_data_to_client(
     std::unique_ptr<LayerHttp_HttpDataToClient> &&req)
     -> void {
-
     // Wait for the routing entry point to be ready.
     m_logger->info(std::format("Handling HTTP data to client"));
-    std::unique_lock lock(m_mutex);
-    m_cv.wait(lock, [&] {return m_received_data_at_client.contains(req->client_socket_fd); });
-    m_received_data_at_client[req->client_socket_fd].write(req->data);
-    lock.unlock();
+
+    auto buf_ptr = static_cast<SelectableBytesIO*>(nullptr);
+    {
+        std::unique_lock lock(m_mutex);
+        m_cv.wait(lock, [&] { return m_received_data_at_client.contains(req->client_socket_fd); });
+        buf_ptr = &m_received_data_at_client[req->client_socket_fd];
+    }
 
     // Write the data to the correct buffer, that will be sent to the web client.
+    buf_ptr->write(req->data);
     m_logger->info(std::format("Client ID exists => written {} bytes to route entry buffer", req->data.size()));
 }
 
@@ -242,7 +249,7 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_data_exchange_as_client(
 
     while (true) {
         // Get the readable and errored sockets.
-        auto [readable, _, errored] = net::select(sockets, {}, sockets, std::chrono::milliseconds(100));
+        auto [readable, _, errored] = net::select(sockets, {}, sockets, std::chrono::milliseconds(5));
         if (not errored.empty()) { break; }
 
         // Forward data from readable sockets into the opposite socket.
@@ -272,6 +279,17 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_data_exchange_as_client(
         }
     }
 
+    // Can we close this socket and clean up? Has the stream effectively ended?
+    // This is determined by whether there is no more data to read from either side.
+    // if (sys::recv(client_socket.fileno(), nullptr, 0, sys::MSG_PEEK) == 0 &&
+    //     sys::recv(routing_entry_point.fileno(), nullptr, 0, sys::MSG_PEEK) == 0) {
+    //     m_logger->info("No more data to read from either side; closing client socket and cleaning up");
+    //     client_socket.close();
+    //     routing_entry_point.close();
+    //     m_received_data_at_client.erase(m_received_data_at_client.find(client_socket.fileno()));
+    //     m_received_data_at_server.erase(m_received_data_at_server.find(client_socket.fileno()));
+    // }
+
     // Close the client socket and clean up.
     // client_socket.close();
     // routing_entry_point.close();
@@ -289,7 +307,7 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_data_exchange_as_server(
 
     while (true) {
         // Get the readable and errored sockets.
-        auto [readable, _, errored] = net::select(sockets, {}, sockets, std::chrono::milliseconds(100));
+        auto [readable, _, errored] = net::select(sockets, {}, sockets, std::chrono::milliseconds(5));
         if (not errored.empty()) { break; }
 
         // Forward data from readable sockets into the opposite socket.
@@ -319,6 +337,17 @@ auto snet::comm_stack::layers::http::LayerHttp::handle_data_exchange_as_server(
             }
         }
     }
+
+    // Can we close this socket and clean up? Has the stream effectively ended?
+    // This is determined by whether there is no more data to read from either side.
+    // // if (sys::recv(server_socket.fileno(), nullptr, 0, sys::MSG_PEEK) == 0 &&
+    //     sys::recv(routing_exit_point.fileno(), nullptr, 0, sys::MSG_PEEK) == 0) {
+    //     m_logger->info("No more data to read from either side; closing server socket and cleaning up");
+    //     server_socket.close();
+    //     routing_exit_point.close();
+    //     m_received_data_at_server.erase(m_received_data_at_server.find(client_socket_fd));
+    //     m_received_data_at_client.erase(m_received_data_at_client.find(client_socket_fd));
+    // }
 
     // Close the server socket and clean up.
     // server_socket.close();

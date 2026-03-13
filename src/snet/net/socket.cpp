@@ -115,7 +115,7 @@ auto snet::net::Socket::close() -> void {
 
 template <typename S>
     requires std::derived_from<S, snet::net::Socket>
-auto snet::net::socket_pair() -> std::pair<S, S> {
+    auto snet::net::socket_pair() -> std::pair<S, S> {
     int sv[2];
     if (sys::socketpair(sys::AF_UNIX, sys::SOCK_STREAM, 0, sv) == -1) {
         throw std::system_error(sys::get_errno(), std::system_category(), "Failed to create socket pair");

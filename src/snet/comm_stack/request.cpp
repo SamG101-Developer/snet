@@ -12,7 +12,7 @@ export namespace snet::comm_stack {
     };
 
     struct RawRequest : AbstractRequest {
-        crypt::bytes::RawBytes conn_tok;
+        crypt::bytes::RawBytes conn_tok = {};
         bool secure = false;
 
         RawRequest() = default;
@@ -33,7 +33,7 @@ export namespace snet::comm_stack {
     };
 
     struct EncryptedRequest final : RawRequest {
-        crypt::bytes::RawBytes ciphertext;
+        crypt::bytes::RawBytes ciphertext = {};
 
         EncryptedRequest() = default;
 
@@ -54,8 +54,8 @@ export namespace snet::comm_stack {
     };
 
     struct LayerD_BootstrapRequest final : RawRequest {
-        crypt::bytes::RawBytes node_cert;
-        crypt::bytes::RawBytes node_id;
+        crypt::bytes::RawBytes node_cert = {};
+        crypt::bytes::RawBytes node_id = {};
 
         LayerD_BootstrapRequest() = default;
 
@@ -77,8 +77,8 @@ export namespace snet::comm_stack {
     };
 
     struct LayerD_BootstrapResponse final : RawRequest {
-        crypt::bytes::RawBytes node_info;
-        crypt::bytes::RawBytes sig;
+        crypt::bytes::RawBytes node_info = {};
+        crypt::bytes::RawBytes sig = {};
 
         LayerD_BootstrapResponse() = default;
 
@@ -100,9 +100,9 @@ export namespace snet::comm_stack {
     };
 
     struct Layer4_ConnectionRequest final : RawRequest {
-        crypt::bytes::RawBytes req_cert;
-        crypt::bytes::RawBytes req_epk;
-        crypt::bytes::RawBytes sig;
+        crypt::bytes::RawBytes req_cert = {};
+        crypt::bytes::RawBytes req_epk = {};
+        crypt::bytes::RawBytes sig = {};
 
         Layer4_ConnectionRequest() = default;
 
@@ -126,9 +126,9 @@ export namespace snet::comm_stack {
     };
 
     struct Layer4_ConnectionAccept final : RawRequest {
-        crypt::bytes::RawBytes acceptor_cert;
-        crypt::bytes::RawBytes kem_wrapped_p2p_primary_key;
-        crypt::bytes::RawBytes sig;
+        crypt::bytes::RawBytes acceptor_cert = {};
+        crypt::bytes::RawBytes kem_wrapped_p2p_primary_key = {};
+        crypt::bytes::RawBytes sig = {};
 
         Layer4_ConnectionAccept() = default;
 
@@ -152,7 +152,7 @@ export namespace snet::comm_stack {
     };
 
     struct Layer4_ConnectionAck final : RawRequest {
-        crypt::bytes::RawBytes sig;
+        crypt::bytes::RawBytes sig = {};
 
         Layer4_ConnectionAck() = default;
 
@@ -192,7 +192,7 @@ export namespace snet::comm_stack {
     };
 
     struct Layer3_PingRequest final : RawRequest {
-        std::double_t ping_ts;
+        std::double_t ping_ts = 0.0;
 
         Layer3_PingRequest() = default;
 
@@ -211,8 +211,8 @@ export namespace snet::comm_stack {
     };
 
     struct Layer3_PongRequest final : RawRequest {
-        std::double_t ping_ts;
-        std::double_t pong_ts;
+        std::double_t ping_ts = 0.0;
+        std::double_t pong_ts = 0.0;
 
         Layer3_PongRequest() = default;
 
@@ -317,7 +317,7 @@ export namespace snet::comm_stack {
 
 
     struct Layer3_FindNodeRequest final : RawRequest {
-        crypt::bytes::RawBytes target_id;
+        crypt::bytes::RawBytes target_id = {};
 
         Layer3_FindNodeRequest() = default;
 
@@ -336,8 +336,8 @@ export namespace snet::comm_stack {
     };
 
     struct Layer3_FindNodeResponse final : RawRequest {
-        crypt::bytes::RawBytes target_id;
-        std::vector<std::tuple<std::string, std::uint16_t, crypt::bytes::RawBytes>> closest_node_info;
+        crypt::bytes::RawBytes target_id = {};
+        std::vector<std::tuple<std::string, std::uint16_t, crypt::bytes::RawBytes>> closest_node_info = {};
 
         Layer3_FindNodeResponse() = default;
 
@@ -358,11 +358,11 @@ export namespace snet::comm_stack {
     };
 
     struct Layer2_RouteExtensionRequest final : RawRequest {
-        crypt::bytes::RawBytes route_tok;
-        crypt::bytes::RawBytes route_owner_epk;
-        std::string next_node_ip;
+        crypt::bytes::RawBytes route_tok = {};
+        crypt::bytes::RawBytes route_owner_epk = {};
+        std::string next_node_ip = {};
         std::uint16_t next_node_port = 0;
-        crypt::bytes::RawBytes next_node_id;
+        crypt::bytes::RawBytes next_node_id = {};
 
         Layer2_RouteExtensionRequest() = default;
 
@@ -390,8 +390,8 @@ export namespace snet::comm_stack {
     };
 
     struct Layer2_TunnelJoinRequest final : RawRequest {
-        crypt::bytes::RawBytes route_token;
-        crypt::bytes::RawBytes route_owner_epk;
+        crypt::bytes::RawBytes route_token = {};
+        crypt::bytes::RawBytes route_owner_epk = {};
 
         Layer2_TunnelJoinRequest() = default;
 
@@ -413,10 +413,10 @@ export namespace snet::comm_stack {
     };
 
     struct Layer2_TunnelJoinAccept final : RawRequest {
-        crypt::bytes::RawBytes route_token;
-        crypt::bytes::RawBytes acceptor_cert;
-        crypt::bytes::RawBytes kem_wrapped_p2p_primary_key;
-        crypt::bytes::RawBytes sig;
+        crypt::bytes::RawBytes route_token = {};
+        crypt::bytes::RawBytes acceptor_cert = {};
+        crypt::bytes::RawBytes kem_wrapped_p2p_primary_key = {};
+        crypt::bytes::RawBytes sig = {};
 
         Layer2_TunnelJoinAccept() = default;
 
@@ -442,8 +442,8 @@ export namespace snet::comm_stack {
     };
 
     struct Layer2_TunnelJoinReject final : RawRequest {
-        crypt::bytes::RawBytes route_token;
-        std::string reason;
+        crypt::bytes::RawBytes route_token = {};
+        std::string reason = {};
 
         Layer2_TunnelJoinReject() = default;
 
@@ -465,7 +465,7 @@ export namespace snet::comm_stack {
     };
 
     struct Layer2_TunnelDataForward final : RawRequest {
-        crypt::bytes::RawBytes data;
+        crypt::bytes::RawBytes data = {};
 
         Layer2_TunnelDataForward() = default;
 
@@ -485,7 +485,7 @@ export namespace snet::comm_stack {
     };
 
     struct Layer2_TunnelDataBackward final : RawRequest {
-        crypt::bytes::RawBytes data;
+        crypt::bytes::RawBytes data = {};
 
         Layer2_TunnelDataBackward() = default;
 
@@ -505,8 +505,8 @@ export namespace snet::comm_stack {
     };
 
     struct Layer1_ApplicationLayerRequest final : RawRequest {
-        crypt::bytes::RawBytes proto_name;
-        crypt::bytes::RawBytes req_serialized;
+        crypt::bytes::RawBytes proto_name = {};
+        crypt::bytes::RawBytes req_serialized = {};
 
         Layer1_ApplicationLayerRequest() = default;
 
@@ -528,8 +528,8 @@ export namespace snet::comm_stack {
     };
 
     struct Layer1_ApplicationLayerResponse final : RawRequest {
-        crypt::bytes::RawBytes proto_name;
-        crypt::bytes::RawBytes resp_serialized;
+        crypt::bytes::RawBytes proto_name = {};
+        crypt::bytes::RawBytes resp_serialized = {};
 
         Layer1_ApplicationLayerResponse() = default;
 

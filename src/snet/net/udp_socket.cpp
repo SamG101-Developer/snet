@@ -13,13 +13,14 @@ export namespace snet::net {
         static constexpr auto MAX_UDP_SIZE = 64000uz; // Maximum safe UDP payload size (64KB)
         static constexpr auto TIMEOUT_MS = 5000uz; // 5 seconds
         static constexpr auto CLEANUP_INTERVAL_MS = 5000uz; // 5 seconds
-        static constexpr auto RECEIVE_INTERNAL_MS = 100uz; // 100 milliseconds
+        static constexpr auto RECEIVE_INTERNAL_MS = 5uz; // 100 milliseconds
 
         std::jthread m_internal_receiver_thread;
         std::jthread m_internal_cleanup_thread;
         std::map<std::uint32_t, Message> m_messages_in_progress;
         std::vector<std::tuple<std::vector<std::uint8_t>, std::string, std::uint16_t>> m_completed_messages;
         std::mutex m_messages_mutex;
+        // std::condition_variable m_completed_cv;
 
     public:
         explicit UDPSocket(sys::socket_t fd = -1);
@@ -109,6 +110,11 @@ auto snet::net::UDPSocket::recv()
             return message_and_metadata;
         }
     }
+    // std::unique_lock lock(m_messages_mutex);
+    // m_completed_cv.wait(lock, [this] { return not m_completed_messages.empty(); });
+    // auto message_and_metadata = std::move(m_completed_messages.front());
+    // m_completed_messages.erase(m_completed_messages.begin());
+    // return message_and_metadata;
 }
 
 
@@ -129,7 +135,6 @@ auto snet::net::UDPSocket::internal_recv()
         if (recv_len <= 0) {
             throw std::system_error(sys::get_errno(), std::system_category(), "Failed to receive data");
         }
-
         if (static_cast<std::size_t>(recv_len) < sizeof(FragHeader)) {
             throw std::runtime_error("Received data is smaller than fragmentation header size");
         }
@@ -215,6 +220,12 @@ auto snet::net::UDPSocket::internal_reassemble_message(
     // Store the completed message.
     m_completed_messages.emplace_back(std::move(final_buffer), std::move(ip_addr), port);
     m_messages_in_progress.erase(msg_id);
+    // {
+    //     std::scoped_lock lock(m_messages_mutex);
+    //     m_completed_messages.emplace_back(std::move(final_buffer), std::move(ip_addr), port);
+    //     m_messages_in_progress.erase(msg_id);
+    // }
+    // m_completed_cv.notify_one();
 }
 
 

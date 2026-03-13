@@ -158,7 +158,9 @@ auto snet::comm_stack::layers::Layer4::handle_command(
 
     // Get the token and state of the connection.
     const auto tok = req->conn_tok;
-    const auto state = ConnectionCache::connections.contains(tok) ? ConnectionCache::connections[tok]->state : ConnectionState::NOT_CONNECTED;
+    const auto state = ConnectionCache::connections.contains(tok)
+        ? ConnectionCache::connections[tok]->state
+        : ConnectionState::NOT_CONNECTED;
 
     // Map the request type and connection state to the appropriate handler.
     MAP_TO_HANDLER(4, Layer4_ConnectionRequest, state == ConnectionState::NOT_CONNECTED, handle_connection_request, peer_ip, peer_port);

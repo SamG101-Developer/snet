@@ -1,6 +1,7 @@
 import openssl;
 import spdlog;
 import std;
+import std.compat;
 
 import snet.comm_stack.request;
 import snet.credentials.keyring;
@@ -20,6 +21,8 @@ import snet.manager.ds_manager;
 
 import snet.boot;
 import snet.cli;
+
+#include <execinfo.h>
 
 
 // auto test_signature_functions() -> void {
@@ -140,7 +143,21 @@ import snet.cli;
 // }
 
 
+void handler(int sig) {
+    void *array[10];
+
+    // get void*'s for all entries on the stack
+    const std::size_t size = backtrace(array, 10);
+
+    // print out all the frames to stderr
+    fprintf(reinterpret_cast<FILE*>(2), "Error: signal %d:\n", sig);
+    backtrace_symbols_fd(array, size, 2);
+    exit(1);
+}
+
+
 auto main(const int argc, char **argv) -> int {
+    signal(11, handler);
     snet::boot::boot_serex();
     spdlog::set_level(spdlog::level::level_enum::debug);
 

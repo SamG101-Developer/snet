@@ -31,12 +31,12 @@ export namespace snet::credentials {
             port(port) {
         }
 
-        crypt::bytes::RawBytes identifier;
-        crypt::bytes::SecureBytes secret_key;
-        crypt::bytes::RawBytes public_key;
-        crypt::bytes::RawBytes certificate;
-        crypt::bytes::RawBytes hashed_username;
-        crypt::bytes::SecureBytes hashed_password;
+        crypt::bytes::RawBytes identifier = {};
+        crypt::bytes::SecureBytes secret_key = {};
+        crypt::bytes::RawBytes public_key = {};
+        crypt::bytes::RawBytes certificate = {};
+        crypt::bytes::RawBytes hashed_username = {};
+        crypt::bytes::SecureBytes hashed_password = {};
         std::uint16_t port = 0;
 
         auto serialize(serex::Archive &ar) -> void {

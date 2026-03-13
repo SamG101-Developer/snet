@@ -102,6 +102,8 @@ export namespace sys {
     constexpr auto INADDR_ANY = static_cast<in_addr>(0);
 #undef INET_ADDRSTRLEN
     constexpr auto INET_ADDRSTRLEN = 16;
+#undef MSG_PEEK
+    constexpr auto MSG_PEEK = 0x02;
 }
 
 

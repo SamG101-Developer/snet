@@ -230,13 +230,13 @@ auto snet::comm_stack::layers::Layer2::send_tunnel_forward(
     // Wait for the route to be created to fix timing issues (only called from route owner).
     // Todo: switch to an std::barrier
     while (m_route == nullptr or (not for_route_setup and not m_route->ready)) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
     // Get the list of nodes in reverse order.
     const auto node_list = m_route->nodes
         | genex::views::ptr
-        | genex::views::materialize
+        | genex::to<std::vector>()
         | genex::views::reverse
         | genex::to<std::vector>();
 
@@ -428,7 +428,7 @@ auto snet::comm_stack::layers::Layer2::handle_tunnel_data_forward(
     // Unwrap the request and get the internal request object and send it over a secure connection.
     const auto next_conn_tok = m_route_forward_token_map[tun_req->conn_tok];
     const auto next_conn = ConnectionCache::connections[next_conn_tok].get();
-    auto inner_enc_req = serex::load<RawRequest*>(utils::decode_bytes(req->data));
+    auto inner_enc_req = serex::load_poly<RawRequest>(utils::decode_bytes(req->data));
     send_secure(next_conn, std::move(inner_enc_req));
 }
 
@@ -468,7 +468,7 @@ auto snet::comm_stack::layers::Layer2::handle_tunnel_data_backward(
         const auto [ct, iv, tag] = serex::load<crypt::symmetric::CipherText>(utils::decode_bytes(inner_enc_req->ciphertext));
         const auto plaintext = crypt::symmetric::decrypt(*node->e2e_key, ct, iv, tag);
 
-        auto inner_req = serex::load<RawRequest*>(utils::decode_bytes(plaintext));
+        auto inner_req = serex::load_poly<RawRequest>(utils::decode_bytes(plaintext));
         if (serex::poly_non_owning_cast<Layer2_TunnelDataBackward>(inner_req) != nullptr) {
             req = serex::poly_owning_cast<Layer2_TunnelDataBackward>(std::move(inner_req));
         }

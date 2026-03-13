@@ -223,12 +223,14 @@ auto snet::comm_stack::layers::LayerD::handle_bootstrap_response(
 
     // Add the nodes from the response to the cache.
     const auto nodes = serex::load<decltype(ConnectionCache::cached_nodes)>(utils::decode_bytes(req->node_info));
+    auto added_nodes = 0;
     for (auto const &node : nodes) {
         if (not genex::contains(ConnectionCache::cached_nodes, std::get<2>(node), [](auto const &entry) { return std::get<2>(entry); })) {
+            added_nodes++;
             ConnectionCache::cached_nodes.emplace_back(node);
         }
     }
-    m_logger->info(std::format("LayerD successfully bootstrapped and added {} nodes to cache", nodes.size()));
+    m_logger->info(std::format("LayerD successfully bootstrapped and added {} nodes to cache", added_nodes));
 
     // Update the file based cache.
     auto file_data = nlohmann::json::array();
